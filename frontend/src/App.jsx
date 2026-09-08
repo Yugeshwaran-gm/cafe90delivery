@@ -1,0 +1,43 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
+import Menu from './pages/Menu';
+import Login from './pages/Login';
+import CustomerLogin from './pages/CustomerLogin';
+import CustomerRegister from './pages/CustomerRegister';
+import CustomerDashboard from './pages/CustomerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import DeliveryDashboard from './pages/DeliveryDashboard';
+import AdminLogin from './pages/AdminLogin';
+import DeliveryLogin from './pages/DeliveryLogin';
+import Showcase from './pages/Showcase';
+import { CartProvider } from './context/CartContext';
+import Gallery from './pages/Gallery';
+import About from './pages/About';
+
+function App() {
+  return (
+    <CartProvider>
+      <Router>
+        <div className="app-container">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/menu" element={<Menu />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/login/customer" element={<CustomerLogin />} />
+            <Route path="/login/admin" element={<AdminLogin />} />
+            <Route path="/login/delivery" element={<DeliveryLogin />} />
+            <Route path="/register/customer" element={<CustomerRegister />} />
+            <Route path="/dashboard/customer" element={<CustomerDashboard />} />
+            <Route path="/dashboard/admin" element={<AdminDashboard />} />
+            <Route path="/dashboard/delivery" element={<DeliveryDashboard />} />
+            <Route path="/showcase" element={<Showcase />} />
+          </Routes>
+        </div>
+      </Router>
+    </CartProvider>
+  );
+}
+
+export default App;

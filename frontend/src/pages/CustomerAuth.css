@@ -1,0 +1,196 @@
+/* ── Page Wrapper ── */
+.cauth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-image: linear-gradient(rgba(5,5,5,0.5), rgba(5,5,5,0.75)), url('/restaurant-bg.png');
+  background-size: cover;
+  background-position: center;
+}
+
+/* ── Card ── */
+.cauth-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 40px 36px;
+  background: rgba(12, 12, 12, 0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  position: relative;
+}
+
+/* ── Back Button ── */
+.cauth-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 28px;
+  transition: color 0.2s;
+}
+.cauth-back:hover { color: var(--text-primary); }
+
+/* ── Header ── */
+.cauth-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.cauth-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: white;
+}
+.cauth-icon.customer-icon { background: #D97706; }
+
+.cauth-header h2 {
+  font-size: 1.8rem;
+  margin-bottom: 6px;
+}
+
+/* ── Messages ── */
+.cauth-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  margin-bottom: 18px;
+  text-align: center;
+}
+.cauth-success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+/* ── Form ── */
+.cauth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cauth-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 7px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cauth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.cauth-input-icon {
+  position: absolute;
+  left: 13px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+.cauth-input-wrap input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 11px 42px 11px 40px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.cauth-input-wrap input:focus {
+  border-color: #D97706;
+  background: rgba(217, 119, 6, 0.06);
+}
+.cauth-input-wrap input::placeholder { color: rgba(255,255,255,0.25); }
+
+.cauth-eye {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+.cauth-eye:hover { color: var(--text-primary); }
+
+/* ── Submit ── */
+.cauth-submit {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  width: 100%;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.cauth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Spinner ── */
+.cauth-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Footer ── */
+.cauth-footer {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.cauth-footer p { margin-bottom: 10px; }
+
+.cauth-register-btn {
+  display: inline-block;
+  padding: 10px 28px;
+  border: 2px solid #D97706;
+  border-radius: 10px;
+  color: #D97706;
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+}
+.cauth-register-btn:hover {
+  background: #D97706;
+  color: white;
+}

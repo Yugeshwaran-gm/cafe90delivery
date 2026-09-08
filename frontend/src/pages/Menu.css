@@ -1,0 +1,222 @@
+.menu-page {
+  padding-top: 100px;
+  min-height: 100vh;
+  background-image: linear-gradient(rgba(5, 5, 5, 0.4), rgba(5, 5, 5, 0.7)), url('/restaurant-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.menu-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.menu-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.menu-title {
+  font-size: 3rem;
+  color: var(--accent-light);
+}
+
+.menu-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.category-pills {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 50px;
+}
+
+.pill {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  padding: 10px 24px;
+  border-radius: 50px;
+  font-size: 0.95rem;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1), 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.pill:hover, .pill.active {
+  background: var(--btn-gradient);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), 0 6px 15px rgba(217, 119, 6, 0.4);
+  transform: translateY(-2px);
+}
+
+.food-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.food-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  transition: transform 0.3s ease;
+}
+
+.food-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--glow-shadow);
+}
+
+.food-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+.food-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.food-info h4 {
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+}
+
+.food-info p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex: 1;
+  line-height: 1.4;
+}
+
+.food-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff7ed;
+  background: rgba(217, 119, 6, 0.22);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.add-btn {
+  padding: 6px 20px;
+  font-size: 0.9rem;
+}
+
+.qty-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--btn-gradient);
+  padding: 4px 12px;
+  border-radius: 50px;
+  color: white;
+}
+
+.qty-selector button {
+  background: transparent;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qty-selector span {
+  font-weight: 700;
+  min-width: 15px;
+  text-align: center;
+}
+
+/* Diet Toggle Styles */
+.diet-toggle-container {
+  display: inline-flex;
+  margin-top: 25px;
+  padding: 6px;
+  border-radius: 50px;
+  gap: 5px;
+  background: rgba(20, 20, 20, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.diet-btn {
+  padding: 10px 25px;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.diet-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.diet-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.diet-btn.veg.active {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 
+    0 0 20px rgba(74, 222, 128, 0.15),
+    inset 0 1px 1px rgba(74, 222, 128, 0.2);
+}
+
+.diet-btn.non-veg.active {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+  box-shadow: 
+    0 0 20px rgba(248, 113, 113, 0.15),
+    inset 0 1px 1px rgba(248, 113, 113, 0.2);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.veg { background-color: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.dot.non-veg { background-color: #f87171; box-shadow: 0 0 8px #f87171; }

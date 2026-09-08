@@ -1,0 +1,119 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-image: linear-gradient(rgba(5, 5, 5, 0.4), rgba(5, 5, 5, 0.7)), url('/restaurant-bg.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.login-container {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  min-height: 500px;
+  overflow: hidden;
+  padding: 0;
+  background: rgba(10, 10, 10, 0.95);
+}
+
+.login-left {
+  flex: 1;
+  padding: 50px;
+  background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/restaurant-bg.png');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.login-logo-text {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+}
+.login-logo-text span {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.welcome-section h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.login-right {
+  flex: 1.2;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.login-header h2 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.role-cards {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.role-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: rgba(30, 30, 30, 0.5);
+}
+
+.role-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.role-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  color: white;
+}
+
+.customer-icon { background: #D97706; }
+.delivery-icon { background: #059669; }
+.admin-icon { background: #7C3AED; }
+
+.role-card h3 {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.role-card p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 40px;
+  font-size: 0.9rem;
+}
