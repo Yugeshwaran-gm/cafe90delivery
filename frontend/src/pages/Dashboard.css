@@ -240,3 +240,80 @@
 .w-100 {
   width: 100%;
 }
+
+/* Leaflet Map Controls & Dark Mode Styling */
+.leaflet-container {
+  background: #121212 !important;
+  font-family: inherit !important;
+}
+
+.leaflet-tile {
+  filter: brightness(0.88) contrast(1.05);
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-bar a {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #334155 !important;
+}
+
+/* Google Maps POI Marker Vector Icons */
+.gmap-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.gmap-poi-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid #ffffff;
+  transition: transform 0.2s ease;
+}
+
+.gmap-poi-badge:hover {
+  transform: scale(1.2);
+}
+
+.gmap-poi-badge.fuel {
+  background: #0284c7;
+}
+
+.gmap-poi-badge.shop {
+  background: #2563eb;
+}
+
+.gmap-poi-badge.hospital {
+  background: #dc2626;
+}
+
+.gmap-poi-badge.restaurant {
+  background: #d97706;
+}
+
+/* Autocomplete Suggestions Box Scrollbar & Styling */
+.autocomplete-suggestions-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.autocomplete-suggestions-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+

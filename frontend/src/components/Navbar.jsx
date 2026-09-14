@@ -27,8 +27,8 @@ const Navbar = () => {
           <Link to="/">Home</Link>
           <Link to="/menu">Menu</Link>
           <Link to="/about">About Us</Link>
+          <Link to="/contact">Contact Us</Link>
           <Link to="/gallery">Gallery</Link>
-          <a href="#contact">Contact Us</a>
         </div>
 
         <div className="nav-actions">

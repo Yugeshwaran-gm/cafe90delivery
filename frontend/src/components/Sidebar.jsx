@@ -1,4 +1,4 @@
-import { Home, Users, ShoppingCart, Clock, HelpCircle, Info, LogOut, Bike, Menu as MenuIcon, Image } from 'lucide-react';
+import { Home, Users, ShoppingCart, Clock, HelpCircle, Info, Bike, Menu as MenuIcon, Image } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 
@@ -10,12 +10,11 @@ const Sidebar = ({ role = 'customer', activeView, onViewChange }) => {
     if (role === 'admin') {
       return [
         { name: 'Dashboard', path: '#', icon: Home },
-        { name: 'Customers', path: '#', icon: Users },
         { name: 'Orders', path: '#', icon: ShoppingCart },
+        { name: 'Customers', path: '#', icon: Users },
         { name: 'Delivery Partners', path: '#', icon: Bike },
         { name: 'Food Menu', path: '#', icon: MenuIcon },
-        { name: 'Reports', path: '#', icon: Info },
-        { name: 'Settings', path: '#', icon: HelpCircle },
+        { name: 'Reports & Feedback', path: '#', icon: Info },
       ];
     }
     if (role === 'delivery') {
@@ -55,8 +54,8 @@ const Sidebar = ({ role = 'customer', activeView, onViewChange }) => {
         else if (link.name === 'Customers') { e.preventDefault(); onViewChange('customers'); }
         else if (link.name === 'Orders') { e.preventDefault(); onViewChange('orders'); }
         else if (link.name === 'Delivery Partners') { e.preventDefault(); onViewChange('delivery_partners'); }
-        else if (link.name === 'Staff Directory') { e.preventDefault(); onViewChange('staff'); }
-        else if (link.name === 'Food Menu') { e.preventDefault(); onViewChange('food_menu'); }
+        else if (link.name === 'Food Menu') { e.preventDefault(); onViewChange('menu_management'); }
+        else if (link.name === 'Reports & Feedback') { e.preventDefault(); onViewChange('feedback_reports'); }
       } else if (role === 'delivery') {
         if (link.name === 'Dashboard') { e.preventDefault(); onViewChange('dashboard'); }
         else if (link.name === 'Assigned Orders') { e.preventDefault(); onViewChange('assigned'); }
@@ -90,8 +89,8 @@ const Sidebar = ({ role = 'customer', activeView, onViewChange }) => {
             if (link.name === 'Customers' && activeView === 'customers') isActive = true;
             if (link.name === 'Orders' && activeView === 'orders') isActive = true;
             if (link.name === 'Delivery Partners' && activeView === 'delivery_partners') isActive = true;
-            if (link.name === 'Staff Directory' && activeView === 'staff') isActive = true;
-            if (link.name === 'Food Menu' && activeView === 'food_menu') isActive = true;
+            if (link.name === 'Food Menu' && activeView === 'menu_management') isActive = true;
+            if (link.name === 'Reports & Feedback' && activeView === 'feedback_reports') isActive = true;
           } else if (role === 'delivery') {
             if (link.name === 'Dashboard' && activeView === 'dashboard') isActive = true;
             if (link.name === 'Assigned Orders' && activeView === 'assigned') isActive = true;
@@ -113,13 +112,6 @@ const Sidebar = ({ role = 'customer', activeView, onViewChange }) => {
             </Link>
           )
         })}
-      </div>
-      
-      <div className="sidebar-footer">
-        <Link to="/" className="sidebar-link">
-          <LogOut size={20} />
-          <span>Logout</span>
-        </Link>
       </div>
     </div>
   );
