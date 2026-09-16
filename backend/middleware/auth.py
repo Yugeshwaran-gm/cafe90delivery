@@ -1,7 +1,7 @@
 import os
 import uuid
 from functools import wraps
-from flask import request, g
+from flask import request, g, current_app
 import jwt
 from database.connection import db
 from database.models.user import User, UserRole
@@ -13,13 +13,14 @@ def token_required(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
+        token = request.cookies.get("auth_token")
         
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            parts = auth_header.split()
-            if len(parts) == 2:
-                token = parts[1]
+        if not token:
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                parts = auth_header.split()
+                if len(parts) == 2:
+                    token = parts[1]
                 
         if not token:
             return error_response(
@@ -29,7 +30,7 @@ def token_required(f):
             )
             
         try:
-            secret = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_change_in_prod")
+            secret = current_app.config["SECRET_KEY"]
             payload = jwt.decode(token, secret, algorithms=["HS256"])
             
             user_id_str = payload.get("sub")

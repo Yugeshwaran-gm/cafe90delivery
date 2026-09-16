@@ -9,8 +9,8 @@ from config import Config
 from database.connection import db
 from database.models.order import Order, OrderStatus, OrderStatusHistory
 from database.models.user import User, UserRole, PartnerStatus
-from database.models.food import FoodItem, Category
-from services.order_service import OrderService, RESTAURANT_LAT, RESTAURANT_LNG
+from database.models.food import FoodItem, FoodCategory
+from services.order_service import OrderService
 from services.delivery_service import DeliveryService
 
 class DeepVerificationTestCase(unittest.TestCase):
@@ -27,7 +27,7 @@ class DeepVerificationTestCase(unittest.TestCase):
         db.session.query(OrderStatusHistory).delete()
         db.session.query(Order).delete()
         db.session.query(FoodItem).delete()
-        db.session.query(Category).delete()
+        db.session.query(FoodCategory).delete()
         db.session.query(User).delete()
         db.session.commit()
 
@@ -176,35 +176,41 @@ class DeepVerificationTestCase(unittest.TestCase):
     # -------------------------------------------------------------
     def test_delivery_radius_matrix(self):
         """Test matrix of distances around restaurant (11.0168, 76.9558)."""
-        category = Category(id=uuid.uuid4(), name="Main Course")
+        category = FoodCategory(id=uuid.uuid4(), name="Main Course")
         food = FoodItem(id=uuid.uuid4(), name="Paneer Butter Masala", price=250.0, category_id=category.id)
         db.session.add_all([category, food])
         db.session.commit()
 
         # Coords ~3km away (Valid)
-        valid_lat, valid_lng = 11.0300, 76.9600
-        res_valid, err_valid = OrderService.create_order(
-            customer_id=self.customer.id,
-            items=[{"food_item_id": str(food.id), "quantity": 1}],
-            delivery_address="Valid District Address 12",
-            delivery_latitude=valid_lat,
-            delivery_longitude=valid_lng,
-            payment_method="COD"
+        from services.cart_service import CartService
+        CartService.add_item_to_cart(self.customer.id, str(food.id), 1)
+
+        valid_lat, valid_lng = 11.2500, 77.5200
+        res_valid, err_valid = OrderService.place_order(
+            user_id=self.customer.id,
+            checkout_data={
+                "delivery_address": "Valid District Address 12",
+                "delivery_latitude": valid_lat,
+                "delivery_longitude": valid_lng,
+                "payment_method": "COD"
+            }
         )
         self.assertIsNotNone(res_valid)
         self.assertIsNone(err_valid)
 
-        # Coords ~5000km away (London: 51.5074, -0.1278) -> Out of range (HTTP 400)
-        res_far, err_far = OrderService.create_order(
-            customer_id=self.customer.id,
-            items=[{"food_item_id": str(food.id), "quantity": 1}],
-            delivery_address="London, UK",
-            delivery_latitude=51.5074,
-            delivery_longitude=-0.1278,
-            payment_method="COD"
+        # Coords ~5000km away (London: 51.5074, -0.1278) -> Out of range (exceeds delivery radius)
+        CartService.add_item_to_cart(self.customer.id, str(food.id), 1)
+        res_far, err_far = OrderService.place_order(
+            user_id=self.customer.id,
+            checkout_data={
+                "delivery_address": "London, UK",
+                "delivery_latitude": 51.5074,
+                "delivery_longitude": -0.1278,
+                "payment_method": "COD"
+            }
         )
         self.assertIsNone(res_far)
-        self.assertIn("beyond our maximum delivery radius", err_far)
+        self.assertIn("exceeds our", err_far)
 
     def test_coordinate_invalid_range_schema_rejection(self):
         """Verify schema rejects invalid lat > 90 or lng > 180 with HTTP 422."""
@@ -253,6 +259,42 @@ class DeepVerificationTestCase(unittest.TestCase):
         if last_res == 429:
             data = json.loads(self.client.post("/api/v1/auth/login", json={"email": "nobody@cafe90.com", "password": "wrongpassword"}).data)
             self.assertEqual(data.get("error", {}).get("code"), "RATE_LIMIT_EXCEEDED")
+
+    def test_database_level_order_idempotency(self):
+        """Verify duplicate idempotency_key returns existing order record without creating duplicate orders."""
+        from services.cart_service import CartService
+        category = FoodCategory(id=uuid.uuid4(), name="Idempotency Test Category")
+        food = FoodItem(id=uuid.uuid4(), name="Idempotency Burger", price=150.0, category_id=category.id)
+        db.session.add_all([category, food])
+        db.session.commit()
+
+        # Add item to cart & place order with idempotency key
+        CartService.add_item_to_cart(self.customer.id, str(food.id), 1)
+        key = f"KEY_{uuid.uuid4().hex}"
+        order1, err1 = OrderService.place_order(
+            user_id=self.customer.id,
+            checkout_data={
+                "delivery_address": "Test Street 1",
+                "payment_method": "COD",
+                "idempotency_key": key
+            }
+        )
+        self.assertIsNotNone(order1)
+        self.assertIsNone(err1)
+
+        # Re-submit with same idempotency key -> must return existing order
+        order2, err2 = OrderService.place_order(
+            user_id=self.customer.id,
+            checkout_data={
+                "delivery_address": "Test Street 1",
+                "payment_method": "COD",
+                "idempotency_key": key
+            }
+        )
+        self.assertIsNotNone(order2)
+        self.assertIsNone(err2)
+        self.assertEqual(order1["id"], order2["id"])
+        self.assertEqual(order1["order_number"], order2["order_number"])
 
 if __name__ == "__main__":
     unittest.main()

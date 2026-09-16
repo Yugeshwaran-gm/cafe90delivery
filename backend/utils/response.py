@@ -1,5 +1,5 @@
 import os
-from flask import jsonify
+from flask import jsonify, make_response
 from utils.logger import logger
 
 def success_response(data=None, message="Success", status_code=200, meta=None):
@@ -11,7 +11,7 @@ def success_response(data=None, message="Success", status_code=200, meta=None):
     }
     if meta is not None:
         payload["meta"] = meta
-    return jsonify(payload), status_code
+    return make_response(jsonify(payload), status_code)
 
 def error_response(message="An error occurred", code="BAD_REQUEST", details=None, status_code=400):
     """

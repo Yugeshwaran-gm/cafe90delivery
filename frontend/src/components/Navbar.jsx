@@ -8,8 +8,8 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const handleCartClick = () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    const user = localStorage.getItem('user');
+    if (!user) {
       navigate('/login/customer');
     } else {
       navigate('/dashboard/customer');

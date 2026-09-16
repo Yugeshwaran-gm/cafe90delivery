@@ -5,6 +5,7 @@ from database.models.user import UserRole
 from schemas.cart_schema import AddToCartSchema, UpdateCartItemSchema
 from services.cart_service import CartService
 from utils.response import success_response, error_response
+from utils.limiter import limiter
 
 cart_bp = Blueprint("cart", __name__)
 
@@ -18,6 +19,7 @@ def get_cart():
 @cart_bp.route("/items", methods=["POST"])
 @token_required
 @require_role(UserRole.CUSTOMER)
+@limiter.limit("30 per minute")
 def add_to_cart():
     try:
         json_data = request.get_json() or {}

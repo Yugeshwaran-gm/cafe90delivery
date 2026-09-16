@@ -22,28 +22,13 @@ from database.connection import db, ensure_database_exists
 def seed_database(app=None):
     if app is None:
         from app import create_app
-        app = create_app()
+        app = create_app(skip_autoseed=True)
     with app.app_context():
         db_uri = app.config.get("SQLALCHEMY_DATABASE_URI")
         if db_uri:
             ensure_database_exists(db_uri)
 
-        print("Creating PostgreSQL tables...")
-        from sqlalchemy import text
-        try:
-            db.session.execute(text("""
-                DO $$ BEGIN
-                    CREATE TYPE partnerstatusenum AS ENUM ('AVAILABLE', 'ON_DELIVERY', 'ON_LEAVE', 'OFF_DUTY');
-                EXCEPTION
-                    WHEN duplicate_object THEN null;
-                END $$;
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_status partnerstatusenum DEFAULT 'AVAILABLE'::partnerstatusenum;
-            """))
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            print(f"Migration notice: {e}")
-
+        db.drop_all()
         db.create_all()
 
         # 1. Seed Users

@@ -22,9 +22,9 @@ const CustomerLogin = () => {
     setError('');
     try {
       const res = await api.login(form);
-      const { token, user } = res.data;
+      const { user } = res.data;
 
-      localStorage.setItem('token', token);
+      localStorage.removeItem('token');
       localStorage.setItem('user', JSON.stringify(user));
 
       if (user.role === 'admin') {

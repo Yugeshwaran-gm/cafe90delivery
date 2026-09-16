@@ -1,6 +1,7 @@
 import os
 import datetime
 import jwt
+from flask import current_app
 from flask_bcrypt import Bcrypt
 from database.connection import db
 from database.models.user import User, UserRole
@@ -49,7 +50,7 @@ class AuthService:
         if not bcrypt.check_password_hash(user.password_hash, password):
             return None, "Invalid email or password."
             
-        secret = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_change_in_prod")
+        secret = current_app.config["SECRET_KEY"]
         
         role_str = user.role.value if isinstance(user.role, UserRole) else str(user.role)
         

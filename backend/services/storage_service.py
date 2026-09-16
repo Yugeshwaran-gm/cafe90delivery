@@ -28,11 +28,27 @@ class StorageService:
     @staticmethod
     def upload_image(file_or_base64, folder: str = "cafe90/menu") -> Tuple[Optional[str], Optional[str]]:
         """
-        Uploads an image (file object or base64 string) to Cloudinary CDN.
+        Uploads an image (file object, base64 string, or safe URL) to Cloudinary CDN with strict validation.
         Returns tuple: (image_url, error_message).
         """
         if not file_or_base64:
             return DEFAULT_FOOD_IMAGE, None
+
+        # 1. Base64 payload validation
+        if isinstance(file_or_base64, str) and file_or_base64.startswith("data:image/"):
+            header, _, data = file_or_base64.partition(",")
+            mime_type = header.split(";")[0].replace("data:", "").lower()
+            if mime_type not in ["image/jpeg", "image/png", "image/webp"]:
+                return None, "Invalid image format. Only JPEG, PNG, and WebP images are allowed."
+            if len(data) > 7 * 1024 * 1024:  # ~5MB raw payload
+                return None, "Image file size exceeds the 5MB maximum limit."
+
+        # 2. File stream object validation
+        elif hasattr(file_or_base64, "filename"):
+            filename = getattr(file_or_base64, "filename", "") or ""
+            ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+            if ext not in ["jpg", "jpeg", "png", "webp"]:
+                return None, "Invalid image file extension. Allowed: jpg, jpeg, png, webp."
 
         if StorageService.is_cloudinary_configured():
             try:
@@ -54,8 +70,10 @@ class StorageService:
                 return None, f"Cloudinary upload failed: {str(e)}"
         
         # Fallback if Cloudinary credentials are not set
-        # If input is a URL already, return it
         if isinstance(file_or_base64, str) and (file_or_base64.startswith("http://") or file_or_base64.startswith("https://")):
+            # Basic SSRF prevention: reject localhost / internal loopback IPs
+            if "localhost" in file_or_base64 or "127.0.0.1" in file_or_base64 or "169.254." in file_or_base64:
+                return None, "Invalid remote image URL host."
             return file_or_base64, None
             
         logger.warning("Cloudinary credentials not configured; returning fallback CDN image URL.")

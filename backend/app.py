@@ -19,7 +19,7 @@ from routes.admin_routes import admin_bp
 
 from utils.limiter import limiter
 
-def create_app(config_class=Config):
+def create_app(config_class=Config, skip_autoseed=False):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -37,16 +37,19 @@ def create_app(config_class=Config):
     db.init_app(app)
 
     # In local development mode, auto-create tables & seed if missing
-    if app.config.get("ENVIRONMENT") == "development":
+    if app.config.get("ENVIRONMENT") == "development" and not skip_autoseed:
         with app.app_context():
             try:
                 db.create_all()
                 from database.models.user import User
-                if not db.session.query(User).first():
+                user_exists = db.session.query(User).first() is not None
+                db.session.remove()
+                if not user_exists:
                     logger.info("[DB Auto-Init] No users found. Running initial database seed...")
                     from database.seed import seed_database
                     seed_database(app)
             except Exception as e:
+                db.session.remove()
                 logger.warning(f"[DB Auto-Init] Local database initialization warning: {e}")
 
     # ── Security Response Headers ────────────────

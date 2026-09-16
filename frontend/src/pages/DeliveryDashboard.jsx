@@ -10,7 +10,8 @@ const DeliveryDashboard = () => {
   const [activeView, setActiveView] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await api.logout(); } catch {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");

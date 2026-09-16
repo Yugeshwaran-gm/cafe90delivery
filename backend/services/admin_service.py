@@ -69,50 +69,63 @@ class AdminService:
     @staticmethod
     def get_all_staff():
         from datetime import datetime, timezone, timedelta
-        from database.models.order import PaymentMethod, OrderStatus
+        from database.models.order import PaymentMethod, OrderStatus, Order
 
         now = datetime.now(timezone.utc)
         seven_days_ago = now - timedelta(days=7)
 
-        staff_members = db.session.query(User).filter(User.role.in_([UserRole.ADMIN, UserRole.DELIVERY_PARTNER])).order_by(User.created_at.desc()).all()
-        
+        staff_members = db.session.query(User).filter(
+            User.role.in_([UserRole.ADMIN, UserRole.DELIVERY_PARTNER])
+        ).order_by(User.created_at.desc()).all()
+
+        # Batch SQL Aggregation query across all delivery partners in 1 query
+        stats_query = db.session.query(
+            Order.delivery_partner_id,
+            func.count(Order.id).filter(Order.status == OrderStatus.DELIVERED).label("overall_delivered_count"),
+            func.count(Order.id).filter(
+                Order.status == OrderStatus.DELIVERED,
+                Order.payment_method.in_([PaymentMethod.COD, "COD", "cod"])
+            ).label("overall_cod_count"),
+            func.coalesce(func.sum(Order.total_amount).filter(
+                Order.status == OrderStatus.DELIVERED,
+                Order.payment_method.in_([PaymentMethod.COD, "COD", "cod"])
+            ), 0).label("overall_cod_amount"),
+            func.count(Order.id).filter(
+                Order.status == OrderStatus.DELIVERED,
+                Order.payment_method.in_([PaymentMethod.COD, "COD", "cod"]),
+                Order.created_at >= seven_days_ago
+            ).label("weekly_cod_count"),
+            func.coalesce(func.sum(Order.total_amount).filter(
+                Order.status == OrderStatus.DELIVERED,
+                Order.payment_method.in_([PaymentMethod.COD, "COD", "cod"]),
+                Order.created_at >= seven_days_ago
+            ), 0).label("weekly_cod_amount")
+        ).filter(
+            Order.delivery_partner_id.is_not(None)
+        ).group_by(Order.delivery_partner_id).all()
+
+        stats_map = {
+            row.delivery_partner_id: {
+                "overall_delivered_count": row.overall_delivered_count or 0,
+                "overall_cod_count": row.overall_cod_count or 0,
+                "overall_cod_amount": float(row.overall_cod_amount or 0.0),
+                "weekly_cod_count": row.weekly_cod_count or 0,
+                "weekly_cod_amount": float(row.weekly_cod_amount or 0.0),
+            } for row in stats_query
+        }
+
         result = []
         for s in staff_members:
             s_dict = s.to_dict()
             if s.role == UserRole.DELIVERY_PARTNER:
-                # 7-Day / Weekly COD Deliveries & Cash Collected
-                weekly_cod_res = db.session.query(
-                    func.count(Order.id),
-                    func.coalesce(func.sum(Order.total_amount), 0)
-                ).filter(
-                    Order.delivery_partner_id == s.id,
-                    Order.status == OrderStatus.DELIVERED,
-                    Order.payment_method.in_([PaymentMethod.COD, "COD", "cod"]),
-                    Order.created_at >= seven_days_ago
-                ).first()
-
-                s_dict["weekly_cod_count"] = weekly_cod_res[0] if weekly_cod_res else 0
-                s_dict["weekly_cod_amount"] = float(weekly_cod_res[1]) if weekly_cod_res else 0.0
-
-                # Overall COD Deliveries & Cash Collected
-                overall_cod_res = db.session.query(
-                    func.count(Order.id),
-                    func.coalesce(func.sum(Order.total_amount), 0)
-                ).filter(
-                    Order.delivery_partner_id == s.id,
-                    Order.status == OrderStatus.DELIVERED,
-                    Order.payment_method.in_([PaymentMethod.COD, "COD", "cod"])
-                ).first()
-
-                s_dict["overall_cod_count"] = overall_cod_res[0] if overall_cod_res else 0
-                s_dict["overall_cod_amount"] = float(overall_cod_res[1]) if overall_cod_res else 0.0
-
-                # Overall Total Deliveries
-                overall_delivered = db.session.query(func.count(Order.id)).filter(
-                    Order.delivery_partner_id == s.id,
-                    Order.status == OrderStatus.DELIVERED
-                ).scalar() or 0
-                s_dict["overall_delivered_count"] = overall_delivered
+                partner_stats = stats_map.get(s.id, {
+                    "overall_delivered_count": 0,
+                    "overall_cod_count": 0,
+                    "overall_cod_amount": 0.0,
+                    "weekly_cod_count": 0,
+                    "weekly_cod_amount": 0.0,
+                })
+                s_dict.update(partner_stats)
             else:
                 s_dict["weekly_cod_count"] = 0
                 s_dict["weekly_cod_amount"] = 0.0

@@ -9,7 +9,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState('overview');
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await api.logout(); } catch {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");

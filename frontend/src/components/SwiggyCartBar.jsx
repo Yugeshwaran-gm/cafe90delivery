@@ -13,10 +13,9 @@ const SwiggyCartBar = ({ onOpenCart }) => {
 
   const handleClick = () => {
     const stored = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
     
     let isCustomer = false;
-    if (stored && token) {
+    if (stored) {
       try {
         const u = JSON.parse(stored);
         if (u.role === 'customer') isCustomer = true;
@@ -39,7 +38,12 @@ const SwiggyCartBar = ({ onOpenCart }) => {
   return (
     <>
       <div className="swiggy-cart-bar-container">
-        <div className="swiggy-cart-bar glass-panel" onClick={handleClick}>
+        <button 
+          type="button" 
+          className="swiggy-cart-bar glass-panel" 
+          onClick={handleClick}
+          aria-label={`View cart containing ${cartCount} items, total price ${cartTotal.toFixed(2)} rupees`}
+        >
           <div className="swiggy-cart-left">
             <span className="swiggy-cart-count">{cartCount} ITEM{cartCount > 1 ? 'S' : ''}</span>
             <span className="swiggy-cart-divider">|</span>
@@ -50,7 +54,7 @@ const SwiggyCartBar = ({ onOpenCart }) => {
             <span>View Cart & Checkout</span>
             <ArrowRight size={18} />
           </div>
-        </div>
+        </button>
       </div>
 
       {showAuthModal && (

@@ -1,17 +1,18 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 async function request(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-  
+  // Purge any legacy token leftover in localStorage for security
+  localStorage.removeItem('token');
+
   const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
   const config = {
     ...options,
     headers,
+    credentials: 'include', // Ensures HttpOnly cookies are automatically attached
   };
 
   if (config.body && typeof config.body === 'object') {
@@ -49,6 +50,8 @@ export const api = {
   // Auth
   login: (credentials) => request('/auth/login', { method: 'POST', body: credentials }),
   register: (userData) => request('/auth/register', { method: 'POST', body: userData }),
+  getMe: () => request('/auth/me'),
+  logout: () => request('/auth/logout', { method: 'POST' }),
 
   // Food
   getCategories: () => request('/food/categories'),

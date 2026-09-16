@@ -5,12 +5,14 @@ from database.models.user import UserRole
 from schemas.order_schema import PlaceOrderSchema, UpdateOrderStatusSchema
 from services.order_service import OrderService
 from utils.response import success_response, error_response
+from utils.limiter import limiter
 
 order_bp = Blueprint("order", __name__)
 
 @order_bp.route("/", methods=["POST"])
 @token_required
 @require_role(UserRole.CUSTOMER)
+@limiter.limit("5 per minute")
 def place_order():
     try:
         json_data = request.get_json() or {}

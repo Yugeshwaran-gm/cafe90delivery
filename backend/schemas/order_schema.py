@@ -7,6 +7,7 @@ class PlaceOrderSchema(BaseModel):
     delivery_latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
     delivery_longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     payment_method: str = Field("COD", pattern="^(COD)$")
+    idempotency_key: Optional[str] = Field(None, max_length=100)
 
 
 class UpdateOrderStatusSchema(BaseModel):

@@ -44,6 +44,7 @@ class Order(db.Model):
         server_default=text("gen_random_uuid()")
     )
     order_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True, index=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     delivery_partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     
@@ -94,6 +95,7 @@ class Order(db.Model):
         return {
             "id": str(self.id),
             "order_number": self.order_number,
+            "idempotency_key": self.idempotency_key,
             "customer_id": str(self.customer_id),
             "customer_name": self.customer.full_name if self.customer else "Customer",
             "customer_phone": self.customer.phone if self.customer else "",

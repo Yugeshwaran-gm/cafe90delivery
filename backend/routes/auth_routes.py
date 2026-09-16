@@ -1,4 +1,4 @@
-from flask import Blueprint, request, g
+from flask import Blueprint, request, g, current_app
 from pydantic import ValidationError
 from schemas.auth_schema import RegisterSchema, LoginSchema
 from services.auth_service import AuthService
@@ -25,11 +25,12 @@ def register():
         if err:
             return error_response(message=err, code="REGISTRATION_FAILED", status_code=409)
             
-        return success_response(
+        res = success_response(
             data={"user": user.to_dict()},
             message="Account created successfully!",
             status_code=201
         )
+        return res
     except ValidationError as ve:
         return error_response(
             message="Validation error",
@@ -56,11 +57,23 @@ def login():
         if err:
             return error_response(message=err, code="INVALID_CREDENTIALS", status_code=401)
             
-        return success_response(
-            data=auth_data,
+        token = auth_data.get("token")
+        response = success_response(
+            data={"user": auth_data.get("user")},
             message="Login successful",
             status_code=200
         )
+        
+        is_prod = (current_app.config.get("ENVIRONMENT") == "production")
+        response.set_cookie(
+            key="auth_token",
+            value=token,
+            httponly=True,
+            samesite="None" if is_prod else "Lax",
+            secure=is_prod,
+            max_age=86400  # 24 hours
+        )
+        return response
     except ValidationError as ve:
         return error_response(
             message="Validation error",
@@ -71,6 +84,28 @@ def login():
     except Exception as e:
         logger.error(f"Error in /login: {e}", exc_info=True)
         return error_response(message="Login failed due to a database/server error.", code="INTERNAL_SERVER_ERROR", status_code=500)
+
+@auth_bp.route("/me", methods=["GET"])
+def me():
+    from middleware.auth import token_required
+    @token_required
+    def get_me():
+        return success_response(data={"user": g.current_user.to_dict()})
+    return get_me()
+
+@auth_bp.route("/logout", methods=["POST"])
+def logout():
+    is_prod = (current_app.config.get("ENVIRONMENT") == "production")
+    response = success_response(message="Logged out successfully")
+    response.set_cookie(
+        key="auth_token",
+        value="",
+        expires=0,
+        httponly=True,
+        samesite="None" if is_prod else "Lax",
+        secure=is_prod
+    )
+    return response
 
 # ── User Saved Addresses Endpoints (Max 5 Limit) ─────────
 import uuid

@@ -23,13 +23,13 @@ const DeliveryLogin = () => {
     
     try {
       const res = await api.login(form);
-      const { token, user } = res.data;
+      const { user } = res.data;
 
       if (user.role !== 'delivery_partner') {
         throw new Error('Access denied. This account is not registered as a Delivery Partner.');
       }
 
-      localStorage.setItem('token', token);
+      localStorage.removeItem('token');
       localStorage.setItem('user', JSON.stringify(user));
       navigate('/dashboard/delivery');
     } catch (err) {

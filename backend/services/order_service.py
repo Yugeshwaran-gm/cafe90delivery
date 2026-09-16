@@ -36,6 +36,13 @@ class OrderService:
         creates Order + Line Items + Status Audit Trail, clears cart, and commits.
         """
         try:
+            # 0. Idempotency Check: Prevent duplicate order processing if idempotency_key is supplied
+            idempotency_key = checkout_data.get("idempotency_key")
+            if idempotency_key:
+                existing_order = db.session.query(Order).filter_by(idempotency_key=idempotency_key).first()
+                if existing_order:
+                    return existing_order.to_dict(), None
+
             # 1. Fetch user's cart
             cart = db.session.query(Cart).filter_by(user_id=user_id).first()
             if not cart:
@@ -70,7 +77,6 @@ class OrderService:
             delivery_fee = Decimal("30.00")
             total_amount = subtotal + delivery_fee
 
-
             payment_method_str = checkout_data.get("payment_method", "COD").upper()
             if payment_method_str != "COD":
                 return None, "Online payments are currently unavailable. Please select Cash on Delivery (COD)."
@@ -82,15 +88,15 @@ class OrderService:
             user_lng = checkout_data.get("delivery_longitude")
             if user_lat is not None and user_lng is not None:
                 from config import Config
-                rest_lat, rest_lng = 11.2447993, 77.5172581
+                rest_lat, rest_lng = Config.RESTAURANT_LATITUDE, Config.RESTAURANT_LONGITUDE
                 dist_km = calculate_haversine_distance(rest_lat, rest_lng, float(user_lat), float(user_lng))
                 if dist_km > Config.DELIVERY_RADIUS_KM:
                     return None, f"Selected address ({dist_km:.1f} km away) exceeds our {Config.DELIVERY_RADIUS_KM:.0f} km local district delivery radius."
 
-
             # 4. Create Order Master Record
             new_order = Order(
                 order_number=OrderService._generate_order_number(),
+                idempotency_key=idempotency_key,
                 customer_id=user_id,
                 delivery_address=checkout_data["delivery_address"].strip(),
                 delivery_landmark=checkout_data.get("delivery_landmark"),
@@ -119,11 +125,13 @@ class OrderService:
                 db.session.add(order_item)
 
             # 6. Record Initial Audit Trail Entry
+            idempotency_key = checkout_data.get("idempotency_key")
+            notes_str = f"Idempotency-Key: {idempotency_key}" if idempotency_key else "Order placed by customer"
             status_entry = OrderStatusHistory(
                 order_id=new_order.id,
                 status=OrderStatus.PENDING.value,
                 changed_by_user_id=user_id,
-                notes="Order placed by customer"
+                notes=notes_str
             )
             db.session.add(status_entry)
 

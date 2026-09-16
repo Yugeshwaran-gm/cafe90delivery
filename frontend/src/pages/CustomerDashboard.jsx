@@ -16,6 +16,7 @@ const LeafletMapPicker = ({ location, setLocation, setLandmark }) => {
   const markerRef = useRef(null);
   const poiLayerRef = useRef(null);
   const isSelectingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -27,7 +28,7 @@ const LeafletMapPicker = ({ location, setLocation, setLandmark }) => {
 
   // Google Maps Style Vector SVG Icon Markers for POIs
   const fetchNearbyPOIs = async (lat, lng) => {
-    if (!poiLayerRef.current || !window.L) return;
+    if (!poiLayerRef.current || !window.L || !isMountedRef.current) return;
 
     try {
       const overpassQuery = `[out:json][timeout:3];(node(around:800,${lat},${lng})[amenity~"fuel|hospital|pharmacy|cafe|restaurant"];node(around:800,${lat},${lng})[shop];);out 15;`;
@@ -51,7 +52,7 @@ const LeafletMapPicker = ({ location, setLocation, setLandmark }) => {
         data = await safeFetchOverpass('https://overpass.kumi.systems/api/interpreter');
       }
 
-      if (!poiLayerRef.current) return;
+      if (!poiLayerRef.current || !isMountedRef.current) return;
       poiLayerRef.current.clearLayers();
 
       if (data && data.elements) {
@@ -113,6 +114,8 @@ const LeafletMapPicker = ({ location, setLocation, setLandmark }) => {
         headers: { 'Accept-Language': 'en', 'User-Agent': 'Cafe90-DeliveryApp/1.0' }
       });
       const data = await res.json();
+      if (!isMountedRef.current) return;
+
       if (data && data.address) {
         const addr = data.address;
         const house = addr.house_number || addr.building || '';
@@ -197,6 +200,7 @@ const LeafletMapPicker = ({ location, setLocation, setLandmark }) => {
     initMap();
 
     return () => {
+      isMountedRef.current = false;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -524,7 +528,8 @@ const CustomerDashboard = () => {
     return categoryMatch && dietMatch && searchMatch;
   });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await api.logout(); } catch {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
@@ -594,10 +599,15 @@ const CustomerDashboard = () => {
     );
   };
 
+  const checkoutIdempotencyKeyRef = useRef(null);
+
   const handleProceedToPayment = () => {
     if (!landmark.trim()) {
       alert("Please enter a delivery address.");
       return;
+    }
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current = `IDEM_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     }
     setCheckoutStep('payment');
   };
@@ -616,15 +626,20 @@ const CustomerDashboard = () => {
 
     setTimeout(async () => {
       try {
+        if (!checkoutIdempotencyKeyRef.current) {
+          checkoutIdempotencyKeyRef.current = `IDEM_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        }
         const res = await api.placeOrder({
           delivery_address: landmark,
           delivery_landmark: landmark,
           delivery_latitude: location ? location.lat : null,
           delivery_longitude: location ? location.lng : null,
-          payment_method: paymentMethod
+          payment_method: paymentMethod,
+          idempotency_key: checkoutIdempotencyKeyRef.current
         });
 
         const orderData = res.data;
+        checkoutIdempotencyKeyRef.current = null;
         setPlacedOrderData({
           id: orderData.id,
           order_number: orderData.order_number,

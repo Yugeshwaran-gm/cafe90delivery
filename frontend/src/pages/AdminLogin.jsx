@@ -23,13 +23,13 @@ const AdminLogin = () => {
 
     try {
       const res = await api.login(form);
-      const { token, user } = res.data;
+      const { user } = res.data;
 
       if (user.role !== 'admin') {
         throw new Error('Access denied. This account does not have Admin privileges.');
       }
 
-      localStorage.setItem('token', token);
+      localStorage.removeItem('token');
       localStorage.setItem('user', JSON.stringify(user));
       navigate('/dashboard/admin');
     } catch (err) {

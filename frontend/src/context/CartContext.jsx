@@ -12,23 +12,21 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
 
   const fetchCart = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setCart([]);
-      setCartCount(0);
-      setCartTotal(0);
-      return;
-    }
-
     try {
       setLoading(true);
       const res = await api.getCart();
-      const { items, cart_count, subtotal } = res.data;
+      const { items, cart_count, subtotal } = res.data || {};
       setCart(items || []);
       setCartCount(cart_count || 0);
       setCartTotal(subtotal || 0);
     } catch (err) {
-      console.error('Failed to fetch cart from server:', err);
+      if (err.status === 401) {
+        setCart([]);
+        setCartCount(0);
+        setCartTotal(0);
+      } else {
+        console.error('Failed to fetch cart from server:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -39,29 +37,24 @@ export const CartProvider = ({ children }) => {
   }, [fetchCart]);
 
   const addToCart = async (item, quantity = 1) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      alert('Please sign in to add items to your cart.');
-      return;
-    }
-
     try {
       // Extract correct food item ID (handles both FoodItem and CartItem objects or ID string)
       const foodItemId = typeof item === 'string' ? item : (item.food_item_id || item.id);
       const res = await api.addToCart(foodItemId, quantity);
-      const { items, cart_count, subtotal } = res.data;
+      const { items, cart_count, subtotal } = res.data || {};
       setCart(items || []);
       setCartCount(cart_count || 0);
       setCartTotal(subtotal || 0);
     } catch (err) {
-      alert(err.message || 'Failed to add item to cart');
+      if (err.status === 401) {
+        alert('Please sign in to add items to your cart.');
+      } else {
+        alert(err.message || 'Failed to add item to cart');
+      }
     }
   };
 
   const removeFromCart = async (target) => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
     try {
       // Extract target ID string if passed an item object
       const targetId = typeof target === 'string' ? target : (target?.food_item_id || target?.id);
@@ -77,7 +70,7 @@ export const CartProvider = ({ children }) => {
         res = await api.removeCartItem(cartItem.id);
       }
 
-      const { items, cart_count, subtotal } = res.data;
+      const { items, cart_count, subtotal } = res.data || {};
       setCart(items || []);
       setCartCount(cart_count || 0);
       setCartTotal(subtotal || 0);
