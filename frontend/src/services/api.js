@@ -51,6 +51,7 @@ export const api = {
   login: (credentials) => request('/auth/login', { method: 'POST', body: credentials }),
   register: (userData) => request('/auth/register', { method: 'POST', body: userData }),
   getMe: () => request('/auth/me'),
+  refreshToken: () => request('/auth/refresh', { method: 'POST' }),
   logout: () => request('/auth/logout', { method: 'POST' }),
 
   // Food
@@ -93,10 +94,16 @@ export const api = {
   deleteFoodItem: (id) => request(`/food/${id}`, { method: 'DELETE' }),
   uploadMenuImage: (imageData) => request('/admin/menu/upload-image', { method: 'POST', body: { image: imageData } }),
 
+  // Pricing Rules
+  getPricingRules: () => request('/admin/pricing-rules'),
+  createPricingRule: (ruleData) => request('/admin/pricing-rules', { method: 'POST', body: ruleData }),
+  updatePricingRule: (id, ruleData) => request(`/admin/pricing-rules/${id}`, { method: 'PUT', body: ruleData }),
+
   // Feedback & Reports
   submitContactFeedback: (feedbackData) => request('/admin/contact', { method: 'POST', body: feedbackData }),
   getFeedbacks: () => request('/admin/feedback'),
-  updateFeedbackStatus: (id, status) => request(`/admin/feedback/${id}/status`, { method: 'PUT', body: { status } }),
+  getMyFeedbacks: () => request('/admin/feedback/my-requests'),
+  updateFeedbackStatus: (id, status, adminReply = '') => request(`/admin/feedback/${id}/status`, { method: 'PUT', body: { status, admin_reply: adminReply } }),
 
   // Admin / General Orders
   getAllOrders: (status = '') => request(`/orders/all${status ? `?status=${status}` : ''}`),
@@ -104,6 +111,8 @@ export const api = {
   // Delivery Partner Status & Stats
   updatePartnerWorkStatus: (status) => request('/delivery/status', { method: 'PUT', body: { status } }),
   getDeliveryStats: () => request('/delivery/my-stats'),
+  updatePartnerAvatar: (avatarData) => request('/delivery/profile/avatar', { method: 'PUT', body: { avatar: avatarData } }),
+
 
   // Saved User Addresses (Max 5)
   getSavedAddresses: () => request('/auth/addresses'),

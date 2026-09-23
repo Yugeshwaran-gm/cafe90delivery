@@ -52,6 +52,8 @@ class Order(db.Model):
     delivery_latitude: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 7), nullable=True)
     delivery_longitude: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 7), nullable=True)
     delivery_landmark: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    delivery_distance_km: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+    pricing_rule_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("delivery_charge_rules.id", ondelete="SET NULL"), nullable=True)
     
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("30.00"))
@@ -119,9 +121,11 @@ class Order(db.Model):
         }
 
     def to_pool_dict(self):
-        """Masks sensitive customer PII (phone number & exact street address) for unclaimed driver pool."""
+        """Masks sensitive customer PII (phone number, exact street address, and exact lat/lng) for unclaimed driver pool."""
         d = self.to_dict()
         d["customer_phone"] = "Masked (Unlocks upon claim)"
+        d["delivery_latitude"] = None
+        d["delivery_longitude"] = None
         if self.delivery_landmark and len(self.delivery_landmark.strip()) > 0:
             d["delivery_address"] = f"Area: {self.delivery_landmark.strip()}"
         else:

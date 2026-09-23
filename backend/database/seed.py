@@ -19,7 +19,7 @@ bcrypt = Bcrypt()
 
 from database.connection import db, ensure_database_exists
 
-def seed_database(app=None):
+def seed_database(app=None, reset=False):
     if app is None:
         from app import create_app
         app = create_app(skip_autoseed=True)
@@ -28,8 +28,15 @@ def seed_database(app=None):
         if db_uri:
             ensure_database_exists(db_uri)
 
-        db.drop_all()
+        if reset:
+            env = app.config.get("ENVIRONMENT", "development")
+            if env == "production":
+                raise RuntimeError("CRITICAL SAFETY: db.drop_all() via reset=True is FORBIDDEN in production environment!")
+            print("⚠️ Reset requested: Dropping database tables...")
+            db.drop_all()
+            
         db.create_all()
+
 
         # 1. Seed Users
         admin_email = "admin@cafe90.com"

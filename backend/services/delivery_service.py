@@ -202,12 +202,45 @@ class DeliveryService:
             except ValueError:
                 return None, f"Invalid status. Allowed: {[s.value for s in PartnerStatus]}"
 
+            # Check if delivery partner is currently ON_DELIVERY or has active assigned orders
+            active_orders_count = db.session.query(func.count(Order.id)).filter(
+                Order.delivery_partner_id == partner_id,
+                Order.status.in_([OrderStatus.OUT_FOR_DELIVERY, OrderStatus.READY_FOR_PICKUP])
+            ).scalar() or 0
+
+            current_status = partner.partner_status.value if isinstance(partner.partner_status, PartnerStatus) else partner.partner_status
+            if current_status == PartnerStatus.ON_DELIVERY.value or active_orders_count > 0:
+                return None, "Cannot change work status while on an active delivery task. Complete your active order first."
+
+            if new_status == PartnerStatus.ON_DELIVERY:
+                return None, "Status 'ON_DELIVERY' is automatically assigned when claiming or delivering orders."
+
             partner.partner_status = new_status
             db.session.commit()
             return partner.to_dict(), None
         except Exception as e:
             db.session.rollback()
             return None, str(e)
+
+    @staticmethod
+    def update_partner_avatar(partner_id, avatar_input):
+        try:
+            from services.storage_service import StorageService
+            partner = db.session.get(User, partner_id)
+            if not partner or partner.role != UserRole.DELIVERY_PARTNER:
+                return None, "Invalid delivery partner"
+
+            img_url, err = StorageService.upload_image(avatar_input, folder="cafe90/avatars")
+            if err:
+                return None, f"Avatar upload failed: {err}"
+
+            partner.avatar_url = img_url
+            db.session.commit()
+            return partner.to_dict(), None
+        except Exception as e:
+            db.session.rollback()
+            return None, str(e)
+
 
     @staticmethod
     def get_partner_history_and_stats(partner_id):
@@ -237,14 +270,43 @@ class DeliveryService:
     @staticmethod
     def update_partner_live_location(partner_id, latitude, longitude):
         try:
+            from datetime import datetime, timezone
+            from services.order_service import calculate_haversine_distance
+
             partner = db.session.get(User, partner_id)
             if not partner or partner.role != "delivery_partner":
                 return None, "Invalid delivery partner"
 
-            partner.current_latitude = float(latitude)
-            partner.current_longitude = float(longitude)
+            new_lat = float(latitude)
+            new_lng = float(longitude)
+            now = datetime.now(timezone.utc)
+
+            if partner.current_latitude is not None and partner.current_longitude is not None and partner.updated_at:
+                elapsed_seconds = (now - partner.updated_at).total_seconds()
+                if elapsed_seconds <= 0:
+                    return None, "Stale or out-of-order location timestamp rejected."
+
+                dist_km = calculate_haversine_distance(
+                    partner.current_latitude, partner.current_longitude, new_lat, new_lng
+                )
+
+                # Speed-jump filter: check if speed exceeds 80 km/h
+                hours = elapsed_seconds / 3600.0
+                if hours > 0:
+                    speed_kmh = dist_km / hours
+                    if speed_kmh > 80.0:
+                        return None, f"GPS anomaly detected: speed jump of {speed_kmh:.1f} km/h exceeds maximum limit of 80.0 km/h."
+
+                # Throttling: write to DB only if elapsed_seconds >= 30 or displacement >= 0.1km (100m)
+                if elapsed_seconds < 30.0 and dist_km < 0.1:
+                    return partner.to_dict(), None
+
+            partner.current_latitude = new_lat
+            partner.current_longitude = new_lng
+            partner.updated_at = now
             db.session.commit()
             return partner.to_dict(), None
         except Exception as e:
             db.session.rollback()
             return None, str(e)
+

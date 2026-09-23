@@ -3,7 +3,7 @@ import Sidebar from '../components/Sidebar';
 import MagicBento from '../components/MagicBento';
 import SwiggyCartBar from '../components/SwiggyCartBar';
 import { useCart } from '../context/CartContext';
-import { Plus, Minus, ShoppingCart, Search, LogOut, MapPin, Loader2, CreditCard, ShieldCheck, CheckCircle2, QrCode, Banknote } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Search, LogOut, MapPin, Loader2, CreditCard, ShieldCheck, CheckCircle2, QrCode, Banknote, Phone, Mail, Clock, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import OrderTrackingModal from '../components/OrderTrackingModal';
@@ -441,6 +441,63 @@ const CustomerDashboard = () => {
   const [cardForm, setCardForm] = useState({ number: '4532 8912 3456 7890', expiry: '12/28', cvv: '888', name: 'John Doe' });
   const [placedOrderData, setPlacedOrderData] = useState(null);
 
+  // Help / Contact Form state & previous tickets
+  const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [myFeedbacks, setMyFeedbacks] = useState([]);
+
+  // Auto-fill contact form with logged in user details
+  useEffect(() => {
+    if (user && (user.full_name || user.email)) {
+      setContactForm(prev => ({
+        ...prev,
+        name: prev.name || user.full_name || user.name || '',
+        email: prev.email || user.email || ''
+      }));
+    }
+  }, [user]);
+
+  const fetchMyFeedbacks = async () => {
+    try {
+      const res = await api.getMyFeedbacks();
+      setMyFeedbacks(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch customer feedbacks:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'help') {
+      fetchMyFeedbacks();
+    }
+  }, [activeView]);
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setContactLoading(true);
+    try {
+      await api.submitContactFeedback({
+        name: contactForm.name || user?.full_name || user?.name || 'Customer',
+        email: contactForm.email || user?.email || '',
+        subject: contactForm.subject,
+        message: contactForm.message
+      });
+      setContactSubmitted(true);
+      setContactForm({
+        name: user?.full_name || user?.name || '',
+        email: user?.email || '',
+        subject: '',
+        message: ''
+      });
+      fetchMyFeedbacks();
+    } catch (err) {
+      alert(err.message || 'Failed to submit message. Please try again.');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
   const fetchSavedAddresses = async () => {
     try {
       const res = await api.getSavedAddresses();
@@ -673,15 +730,19 @@ const CustomerDashboard = () => {
           background: 'rgba(10,10,10,0.9)', backdropFilter: 'blur(12px)',
           position: 'sticky', top: 0, zIndex: 100
         }}>
-          <div className="search-bar glass-panel" style={{ width: 360 }}>
-            <Search size={16} style={{ color: 'var(--text-secondary)' }} />
-            <input
-              type="text"
-              placeholder="Search dishes..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
+          {activeView === 'menu' ? (
+            <div className="search-bar glass-panel" style={{ width: 360 }}>
+              <Search size={16} style={{ color: 'var(--text-secondary)' }} />
+              <input
+                type="text"
+                placeholder="Search dishes..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+          ) : (
+            <div style={{ flex: 1 }} />
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <span style={{ fontWeight: 600 }}>Hi, {user.full_name || user.name || "Customer"} 👋</span>
             <button
@@ -1264,6 +1325,228 @@ const CustomerDashboard = () => {
                       <p>No past orders found. Place your first order today!</p>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Help & Contact Us Panel */}
+          {activeView === 'help' && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', paddingBottom: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: '100%', maxWidth: '900px' }}>
+                
+                <div style={{ textAlign: 'center', marginBottom: '35px' }}>
+                  <h2 style={{ fontSize: '2.2rem', color: '#D97706', marginBottom: '6px' }}>Help & Customer Support</h2>
+                  <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)' }}>Get in touch with Cafe 90's support or visit our restaurant.</p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '35px' }}>
+                  <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ background: 'rgba(217, 119, 6, 0.15)', color: '#D97706', padding: '14px', borderRadius: '50%', marginBottom: '12px' }}>
+                      <Phone size={24} />
+                    </div>
+                    <h3 style={{ fontSize: '1.15rem', marginBottom: '6px' }}>Phone Number</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '10px' }}>Call us for order inquiries or assistance.</p>
+                    <a href="tel:+917550344381" style={{ color: '#D97706', fontWeight: 'bold', fontSize: '1.05rem' }}>+91 7550344381</a>
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '14px', borderRadius: '50%', marginBottom: '12px' }}>
+                      <Mail size={24} />
+                    </div>
+                    <h3 style={{ fontSize: '1.15rem', marginBottom: '6px' }}>Email Address</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '10px' }}>Send us an email anytime.</p>
+                    <a href="mailto:cafe90resto@gmail.com" style={{ color: '#60a5fa', fontWeight: 'bold', fontSize: '0.98rem' }}>cafe90resto@gmail.com</a>
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '14px', borderRadius: '50%', marginBottom: '12px' }}>
+                      <Clock size={24} />
+                    </div>
+                    <h3 style={{ fontSize: '1.15rem', marginBottom: '6px' }}>Opening Hours</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Monday – Sunday</p>
+                    <p style={{ color: '#34d399', fontWeight: 'bold', fontSize: '1rem', marginTop: '4px' }}>10:00 AM – 11:00 PM</p>
+                  </div>
+                </div>
+
+                {/* PREVIOUS SUPPORT TICKETS & ADMIN REPLIES */}
+                {myFeedbacks.length > 0 && (
+                  <div className="glass-panel" style={{ width: '100%', padding: '24px', borderRadius: '18px', marginBottom: '35px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '1.3rem', color: '#D97706', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ShieldCheck size={20} /> Your Support Requests & Admin Responses
+                      </h3>
+                      <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.08)', padding: '4px 12px', borderRadius: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                        {myFeedbacks.length} {myFeedbacks.length === 1 ? 'ticket' : 'tickets'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {myFeedbacks.map(fb => (
+                        <div key={fb.id} style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)', padding: '18px', borderRadius: '14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                            <h4 style={{ fontSize: '1.05rem', fontWeight: 'bold', color: 'white' }}>{fb.subject}</h4>
+                            <span style={{
+                              fontSize: '0.75rem',
+                              padding: '4px 12px',
+                              borderRadius: '20px',
+                              fontWeight: '600',
+                              background: fb.status === 'RESOLVED' ? 'rgba(16, 185, 129, 0.2)' : fb.status === 'IN_REVIEW' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                              color: fb.status === 'RESOLVED' ? '#34d399' : fb.status === 'IN_REVIEW' ? '#60a5fa' : '#fbbf24',
+                              border: `1px solid ${fb.status === 'RESOLVED' ? '#10b981' : fb.status === 'IN_REVIEW' ? '#3b82f6' : '#f59e0b'}`
+                            }}>
+                              {fb.status === 'RESOLVED' ? '✓ RESOLVED' : fb.status === 'IN_REVIEW' ? 'ℹ IN REVIEW' : '⏳ PENDING REVIEW'}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
+                            Submitted on {new Date(fb.created_at).toLocaleString()}
+                          </p>
+                          <p style={{ fontSize: '0.92rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.03)', padding: '12px 14px', borderRadius: '8px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            "{fb.message}"
+                          </p>
+
+                          {/* ADMIN RESPONSE BOX */}
+                          {fb.admin_reply ? (
+                            <div style={{ background: 'rgba(59, 130, 246, 0.12)', borderLeft: '4px solid #3B82F6', padding: '12px 16px', borderRadius: '8px' }}>
+                              <p style={{ fontSize: '0.82rem', color: '#60a5fa', fontWeight: 'bold', marginBottom: '4px' }}>
+                                💬 Admin Official Response:
+                              </p>
+                              <p style={{ fontSize: '0.92rem', color: 'white', lineHeight: '1.4' }}>
+                                {fb.admin_reply}
+                              </p>
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' }}>
+                              ⏳ Our support team is reviewing your message and will post an update here shortly.
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px', alignItems: 'start' }}>
+                  
+                  {/* Contact Form */}
+                  <div className="glass-panel" style={{ padding: '28px' }}>
+                    <h3 style={{ fontSize: '1.5rem', marginBottom: '18px' }}>Send Us a Message</h3>
+                    {contactSubmitted ? (
+                      <div style={{ textAlign: 'center', padding: '30px 15px', color: '#10b981' }}>
+                        <CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} />
+                        <h4 style={{ fontSize: '1.3rem', marginBottom: '8px', color: 'white' }}>Thank You!</h4>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Your message has been sent successfully. Our support team will get back to you shortly.</p>
+                        <button className="btn-secondary" style={{ marginTop: '16px', fontSize: '0.88rem' }} onClick={() => setContactSubmitted(false)}>Send Another Message</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Your Name</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="John Doe"
+                            value={contactForm.name}
+                            onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '0.95rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Email Address</label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="you@email.com"
+                            value={contactForm.email}
+                            onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '0.95rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Subject</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Order Inquiry / Feedback / General Question"
+                            value={contactForm.subject}
+                            onChange={e => setContactForm({ ...contactForm, subject: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '0.95rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Message</label>
+                          <textarea
+                            required
+                            rows={4}
+                            placeholder="Describe your issue or feedback..."
+                            value={contactForm.message}
+                            onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '0.95rem', resize: 'vertical' }}
+                          />
+                        </div>
+                        <button className="btn-primary" type="submit" disabled={contactLoading} style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem', marginTop: '6px' }}>
+                          <Send size={16} /> {contactLoading ? 'Sending...' : 'Send Message'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {/* Location & Map Card */}
+                  <div className="glass-panel" style={{ padding: '28px', display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <MapPin size={22} style={{ color: '#D97706' }} />
+                        <h3 style={{ fontSize: '1.5rem' }}>Visit Our Cafe</h3>
+                      </div>
+                      <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '18px', fontSize: '0.9rem' }}>
+                        Experience the warmth and nostalgia of 90's dining. Step in for handcrafted coffee, sizzling fast bites, and great music.
+                      </p>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px 18px', borderRadius: '10px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '4px' }}>Cafe 90's Resto</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Anna Nagar / Main Road, Chennai, Tamil Nadu</p>
+                      </div>
+                    </div>
+
+                    <div style={{ borderRadius: '12px', overflow: 'hidden', height: '180px', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '16px' }}>
+                      <a
+                        href="https://maps.app.goo.gl/tBe21N6NB3VnyRQX7"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'white', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}
+                      >
+                        <MapPin size={36} style={{ color: '#D97706' }} />
+                        <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>Open in Google Maps</span>
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Click to navigate directly to Cafe 90's Resto</span>
+                      </a>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* About Us Panel */}
+          {activeView === 'about' && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', paddingBottom: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div className="glass-panel" style={{ width: '100%', maxWidth: '800px', padding: '35px', textAlign: 'center' }}>
+                <img src="/logo.jpg" alt="Cafe 90's Logo" style={{ width: '140px', marginBottom: '20px', mixBlendMode: 'screen' }} />
+                <h2 style={{ fontSize: '2.2rem', color: '#D97706', marginBottom: '12px' }}>About Cafe 90's</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '25px' }}>
+                  Welcome to Cafe 90's, where every bite comes with a side of nostalgia! Founded in 2019, we bring back the golden era of 90's dining with rich filter coffees, sizzlers, paneer tikka sandwiches, and authentic South Indian delicacies.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '30px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h4 style={{ color: '#D97706', fontSize: '1.2rem', marginBottom: '6px' }}>Fresh Ingredients</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Daily sourced local produce & handcrafted recipes.</p>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h4 style={{ color: '#34d399', fontSize: '1.2rem', marginBottom: '6px' }}>Fast Delivery</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Hot & fresh food delivered right to your doorstep.</p>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h4 style={{ color: '#60a5fa', fontSize: '1.2rem', marginBottom: '6px' }}>90s Vibes</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Retro aesthetics, classic tunes & memorable tastes.</p>
+                  </div>
                 </div>
               </div>
             </div>

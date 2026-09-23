@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from flask_bcrypt import Bcrypt
 from database.connection import db
 from database.models.user import User, UserRole, PartnerStatus
@@ -188,7 +189,14 @@ class AdminService:
 
     @staticmethod
     def create_feedback(data):
+        user_id = data.get("user_id")
+        if not user_id and data.get("email"):
+            user = db.session.query(User).filter(func.lower(User.email) == data["email"].strip().lower()).first()
+            if user:
+                user_id = user.id
+
         feedback = Feedback(
+            user_id=user_id,
             name=data["name"].strip(),
             email=data["email"].strip().lower(),
             subject=data["subject"].strip(),
@@ -204,16 +212,40 @@ class AdminService:
         return [f.to_dict() for f in feedbacks]
 
     @staticmethod
-    def update_feedback_status(feedback_id_str, status_str):
+    def get_user_feedbacks(user_id=None, email=None):
+        query = db.session.query(Feedback)
+        conditions = []
+        if user_id:
+            conditions.append(Feedback.user_id == user_id)
+        if email:
+            conditions.append(func.lower(Feedback.email) == email.lower().strip())
+        
+        if not conditions:
+            return []
+        
+        query = query.filter(or_(*conditions))
+        feedbacks = query.order_by(Feedback.created_at.desc()).all()
+        return [f.to_dict() for f in feedbacks]
+
+    @staticmethod
+    def update_feedback_status(feedback_id_str, status_str, admin_reply=None):
         try:
             fb_uuid = uuid.UUID(feedback_id_str)
-            feedback = db.session.get(Feedback, fb_uuid)
-            if not feedback:
-                return None, "Feedback not found"
-            
-            feedback.status = FeedbackStatus(status_str)
-            db.session.commit()
-            return feedback.to_dict(), None
         except ValueError:
-            db.session.rollback()
             return None, "Invalid Feedback ID format"
+
+        feedback = db.session.get(Feedback, fb_uuid)
+        if not feedback:
+            return None, "Feedback not found"
+        
+        try:
+            normalized_status = str(status_str).upper().replace(" ", "_")
+            feedback.status = FeedbackStatus(normalized_status)
+        except ValueError:
+            return None, f"Invalid Feedback status: {status_str}"
+
+        if admin_reply is not None:
+            feedback.admin_reply = admin_reply.strip()
+        feedback.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return feedback.to_dict(), None

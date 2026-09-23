@@ -44,7 +44,10 @@ const OrderTrackingModal = ({ orderId, onClose }) => {
     const destLat = order.delivery_latitude || 11.2485;
     const destLng = order.delivery_longitude || 77.5210;
 
+    const isMountedRef = { current: true };
+
     const initTrackingMap = () => {
+      if (!isMountedRef.current) return;
       if (!window.L) {
         setTimeout(initTrackingMap, 300);
         return;
@@ -124,6 +127,14 @@ const OrderTrackingModal = ({ orderId, onClose }) => {
     };
 
     initTrackingMap();
+
+    return () => {
+      isMountedRef.current = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
   }, [order?.id]);
 
   const [cancelSecondsLeft, setCancelSecondsLeft] = useState(0);

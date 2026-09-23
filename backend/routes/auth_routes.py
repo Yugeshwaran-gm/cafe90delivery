@@ -95,6 +95,16 @@ def me():
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
+    token = request.cookies.get("auth_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            parts = auth_header.split()
+            if len(parts) == 2:
+                token = parts[1]
+    if token:
+        AuthService.logout_user(token)
+
     is_prod = (current_app.config.get("ENVIRONMENT") == "production")
     response = success_response(message="Logged out successfully")
     response.set_cookie(
@@ -106,6 +116,42 @@ def logout():
         secure=is_prod
     )
     return response
+
+@auth_bp.route("/refresh", methods=["POST"])
+def refresh_token():
+    token = request.cookies.get("auth_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            parts = auth_header.split()
+            if len(parts) == 2:
+                token = parts[1]
+                
+    if not token:
+        return error_response(message="Authentication token is missing", code="UNAUTHORIZED", status_code=401)
+
+    auth_data, err = AuthService.refresh_token(token)
+    if err:
+        return error_response(message=err, code="TOKEN_REFRESH_FAILED", status_code=401)
+
+    new_token = auth_data.get("token")
+    response = success_response(
+        data={"user": auth_data.get("user")},
+        message="Token refreshed successfully",
+        status_code=200
+    )
+
+    is_prod = (current_app.config.get("ENVIRONMENT") == "production")
+    response.set_cookie(
+        key="auth_token",
+        value=new_token,
+        httponly=True,
+        samesite="None" if is_prod else "Lax",
+        secure=is_prod,
+        max_age=86400  # 24 hours
+    )
+    return response
+
 
 # ── User Saved Addresses Endpoints (Max 5 Limit) ─────────
 import uuid
@@ -137,6 +183,10 @@ def add_user_address():
             return error_response(message="Address line is required.", code="VALIDATION_ERROR", status_code=400)
 
         clean_addr = address_line.strip()
+        if len(clean_addr) > 500:
+            return error_response(message="Address line cannot exceed 500 characters.", code="VALIDATION_ERROR", status_code=422)
+        if len(label) > 50:
+            return error_response(message="Label cannot exceed 50 characters.", code="VALIDATION_ERROR", status_code=422)
         existing_addresses = db.session.query(UserAddress).filter_by(user_id=g.current_user.id).all()
 
         # Check 1: Duplicate location check (same address line under another label)

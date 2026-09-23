@@ -81,6 +81,14 @@ class FoodService:
             if not food:
                 return None, "Food item not found"
                 
+            if "category_id" in data and data["category_id"]:
+                try:
+                    cat_uuid = uuid.UUID(data["category_id"])
+                    cat = db.session.get(FoodCategory, cat_uuid)
+                    if cat:
+                        food.category_id = cat_uuid
+                except ValueError:
+                    pass
             if "name" in data and data["name"]:
                 food.name = data["name"].strip()
             if "price" in data and data["price"] is not None:
@@ -93,6 +101,7 @@ class FoodService:
                 food.is_available = bool(data["is_available"])
             if "diet_type" in data:
                 food.diet_type = DietType.NON_VEG if data["diet_type"] == "non-veg" else DietType.VEG
+
                 
             db.session.commit()
             return food.to_dict(), None

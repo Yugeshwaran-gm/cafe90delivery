@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 from pydantic import ValidationError
 from middleware.auth import token_required, require_role
 from database.models.user import UserRole
@@ -75,7 +75,7 @@ def user_details(user_id):
     return success_response(data=user_data)
 
 @admin_bp.route("/contact", methods=["POST"])
-@limiter.limit("3 per minute")
+@limiter.limit("5 per minute")
 def submit_contact_feedback():
     json_data = request.get_json() or {}
     name = json_data.get("name")
@@ -85,14 +85,39 @@ def submit_contact_feedback():
     
     if not all([name, email, subject, message]):
         return error_response(message="All fields are required", code="INVALID_INPUT", status_code=400)
+
+    user_id = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+            import jwt
+            from flask import current_app
+            secret = current_app.config["SECRET_KEY"]
+            payload = jwt.decode(token, secret, algorithms=["HS256"])
+            if payload and "sub" in payload:
+                import uuid
+                user_id = uuid.UUID(payload["sub"])
+        except Exception:
+            pass
         
     feedback = AdminService.create_feedback({
         "name": name,
         "email": email,
         "subject": subject,
-        "message": message
+        "message": message,
+        "user_id": user_id
     })
     return success_response(data=feedback, message="Feedback submitted successfully", status_code=201)
+
+@admin_bp.route("/feedback/my-requests", methods=["GET"])
+@token_required
+def get_my_feedbacks():
+    user = getattr(g, "current_user", None)
+    if not user:
+        return error_response(message="User context not found", code="UNAUTHORIZED", status_code=401)
+    feedbacks = AdminService.get_user_feedbacks(user_id=user.id, email=user.email)
+    return success_response(data=feedbacks)
 
 @admin_bp.route("/feedback", methods=["GET"])
 @token_required
@@ -107,10 +132,11 @@ def get_feedbacks():
 def update_feedback_status(feedback_id):
     json_data = request.get_json() or {}
     status = json_data.get("status")
+    admin_reply = json_data.get("admin_reply")
     if not status:
         return error_response(message="Status is required", code="INVALID_INPUT", status_code=400)
 
-    feedback, err = AdminService.update_feedback_status(feedback_id, status)
+    feedback, err = AdminService.update_feedback_status(feedback_id, status, admin_reply=admin_reply)
     if err:
         return error_response(message=err, code="UPDATE_FAILED", status_code=400)
         
@@ -135,4 +161,37 @@ def upload_menu_image():
         return error_response(message=err, code="UPLOAD_FAILED", status_code=500)
         
     return success_response(data={"image_url": img_url}, message="Image uploaded successfully")
+
+@admin_bp.route("/pricing-rules", methods=["GET"])
+@token_required
+@require_role(UserRole.ADMIN)
+def get_pricing_rules():
+    from services.pricing_service import PricingService
+    rules = PricingService.get_all_rules()
+    return success_response(data=rules)
+
+@admin_bp.route("/pricing-rules", methods=["POST"])
+@token_required
+@require_role(UserRole.ADMIN)
+def create_pricing_rule():
+    from services.pricing_service import PricingService
+    from flask import g
+    json_data = request.get_json() or {}
+    rule, err = PricingService.create_rule(json_data, g.current_user.id)
+    if err:
+        return error_response(message=err, code="RULE_CREATE_FAILED", status_code=400)
+    return success_response(data=rule, message="Pricing rule created successfully", status_code=201)
+
+@admin_bp.route("/pricing-rules/<rule_id>", methods=["PUT"])
+@token_required
+@require_role(UserRole.ADMIN)
+def update_pricing_rule(rule_id):
+    from services.pricing_service import PricingService
+    from flask import g
+    json_data = request.get_json() or {}
+    rule, err = PricingService.update_rule(rule_id, json_data, g.current_user.id)
+    if err:
+        return error_response(message=err, code="RULE_UPDATE_FAILED", status_code=400)
+    return success_response(data=rule, message="Pricing rule updated successfully")
+
 

@@ -42,6 +42,7 @@ class User(db.Model):
     )
     current_latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     current_longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -71,6 +72,7 @@ class User(db.Model):
             "partner_status": self.partner_status.value if isinstance(self.partner_status, PartnerStatus) else self.partner_status,
             "current_latitude": self.current_latitude,
             "current_longitude": self.current_longitude,
+            "avatar_url": self.avatar_url or "",
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

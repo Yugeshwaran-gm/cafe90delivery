@@ -33,6 +33,16 @@ def token_required(f):
             secret = current_app.config["SECRET_KEY"]
             payload = jwt.decode(token, secret, algorithms=["HS256"])
             
+            jti = payload.get("jti") or str(uuid.uuid5(uuid.NAMESPACE_URL, token))
+            from database.models.revoked_token import RevokedToken
+            revoked = db.session.query(RevokedToken).filter_by(jti=jti).first()
+            if revoked:
+                return error_response(
+                    message="Token has been revoked. Please login again.",
+                    code="TOKEN_REVOKED",
+                    status_code=401
+                )
+            
             user_id_str = payload.get("sub")
             if not user_id_str:
                 return error_response(

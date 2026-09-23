@@ -36,7 +36,7 @@ const Contact = () => {
             <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }}>We'd love to hear from you! Get in touch or visit our restaurant.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '50px' }}>
+          <div className="contact-info-grid">
             <div className="glass-panel" style={{ padding: '30px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ background: 'rgba(217, 119, 6, 0.15)', color: '#D97706', padding: '16px', borderRadius: '50%', marginBottom: '15px' }}>
                 <Phone size={28} />
@@ -65,7 +65,7 @@ const Contact = () => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', alignItems: 'start' }} className="contact-main-grid">
+          <div className="contact-main-grid">
             
             {/* Form */}
             <div className="glass-panel" style={{ padding: '35px' }}>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bike, Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn } from 'lucide-react';
-import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import './CustomerAuth.css';
 
 const DeliveryLogin = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,15 +23,15 @@ const DeliveryLogin = () => {
     setError('');
     
     try {
-      const res = await api.login(form);
-      const { user } = res.data;
+      const user = await login(form);
+      if (!user) {
+        throw new Error('Login failed. Could not retrieve user profile.');
+      }
 
       if (user.role !== 'delivery_partner') {
         throw new Error('Access denied. This account is not registered as a Delivery Partner.');
       }
 
-      localStorage.removeItem('token');
-      localStorage.setItem('user', JSON.stringify(user));
       navigate('/dashboard/delivery');
     } catch (err) {
       setError(err.message || 'Invalid delivery credentials. Please try again.');

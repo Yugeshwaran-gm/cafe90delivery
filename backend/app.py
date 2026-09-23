@@ -41,6 +41,12 @@ def create_app(config_class=Config, skip_autoseed=False):
         with app.app_context():
             try:
                 db.create_all()
+                from sqlalchemy import text
+                db.session.execute(text("ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;"))
+                db.session.execute(text("ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS admin_reply TEXT;"))
+                db.session.execute(text("ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;"))
+                db.session.commit()
+
                 from database.models.user import User
                 user_exists = db.session.query(User).first() is not None
                 db.session.remove()

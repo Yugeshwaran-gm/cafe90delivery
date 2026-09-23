@@ -93,3 +93,19 @@ def update_live_location():
         return error_response(message=err, code="UPDATE_FAILED", status_code=400)
 
     return success_response(data=partner, message="Partner location updated")
+
+@delivery_bp.route("/profile/avatar", methods=["PUT"])
+@token_required
+@require_role(UserRole.DELIVERY_PARTNER)
+def update_profile_avatar():
+    json_data = request.get_json() or {}
+    avatar_input = json_data.get("avatar") or json_data.get("avatar_url")
+    if not avatar_input:
+        return error_response(message="Avatar image data or URL is required", code="VALIDATION_ERROR", status_code=400)
+
+    partner, err = DeliveryService.update_partner_avatar(g.current_user.id, avatar_input)
+    if err:
+        return error_response(message=err, code="UPDATE_FAILED", status_code=400)
+
+    return success_response(data=partner, message="Profile picture updated successfully")
+

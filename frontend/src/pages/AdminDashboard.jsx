@@ -38,6 +38,19 @@ const AdminDashboard = () => {
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [editingPriceValue, setEditingPriceValue] = useState('');
 
+  // Single Edit Dish Modal State
+  const [isEditFoodOpen, setIsEditFoodOpen] = useState(false);
+  const [editingFoodItem, setEditingFoodItem] = useState({
+    id: '',
+    name: '',
+    category_id: '',
+    price: '',
+    diet_type: 'veg',
+    description: '',
+    image_url: '',
+    is_available: true
+  });
+
   // Food Item Modal & File Upload state
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [editingFoodModalItem, setEditingFoodModalItem] = useState(null);
@@ -51,6 +64,7 @@ const AdminDashboard = () => {
     image_url: '',
     is_available: true
   });
+
 
   useEffect(() => {
     fetchAdminData();
@@ -224,6 +238,73 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleOpenEditFoodModal = (item) => {
+    setEditingFoodItem({
+      id: item.id,
+      name: item.name || '',
+      category_id: item.category_id || (categoriesList[0]?.id || ''),
+      price: item.price !== undefined ? item.price : '',
+      diet_type: item.diet_type || 'veg',
+      description: item.description || '',
+      image_url: item.image_url || '',
+      is_available: item.is_available !== false
+    });
+    setIsEditFoodOpen(true);
+  };
+
+  const handleSaveEditFoodItem = async () => {
+    if (!editingFoodItem.name || !editingFoodItem.category_id || editingFoodItem.price === '') {
+      alert("Please fill in Dish Name, Category, and Price.");
+      return;
+    }
+    try {
+      const res = await api.updateFoodItem(editingFoodItem.id, {
+        name: editingFoodItem.name,
+        category_id: editingFoodItem.category_id,
+        price: parseFloat(editingFoodItem.price),
+        diet_type: editingFoodItem.diet_type,
+        description: editingFoodItem.description,
+        image_url: editingFoodItem.image_url,
+        is_available: editingFoodItem.is_available
+      });
+
+      const updatedDish = res.data || {};
+      const catName = categoriesList.find(c => c.id === editingFoodItem.category_id)?.name;
+      setFoodItems(foodItems.map(f => f.id === editingFoodItem.id ? {
+        ...f,
+        name: updatedDish.name || editingFoodItem.name,
+        category_id: updatedDish.category_id || editingFoodItem.category_id,
+        category_name: updatedDish.category_name || catName || f.category_name,
+        price: updatedDish.price !== undefined ? updatedDish.price : editingFoodItem.price,
+        diet_type: updatedDish.diet_type || editingFoodItem.diet_type,
+        description: updatedDish.description !== undefined ? updatedDish.description : editingFoodItem.description,
+        image_url: updatedDish.image_url || editingFoodItem.image_url,
+        is_available: updatedDish.is_available !== undefined ? updatedDish.is_available : editingFoodItem.is_available
+      } : f));
+
+      setIsEditFoodOpen(false);
+      alert(`Updated all details for ${editingFoodItem.name} successfully!`);
+    } catch (err) {
+      alert(err.message || "Failed to update dish details.");
+    }
+  };
+
+  const handleEditImageFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size exceeds 5MB limit.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditingFoodItem(prev => ({ ...prev, image_url: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+
   const handleAssignOrder = async (orderId, partnerId) => {
     if (!partnerId) return;
     try {
@@ -235,10 +316,12 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleUpdateFeedbackStatus = async (fbId, status) => {
+  const handleUpdateFeedbackStatus = async (fbId, status, adminReply = null) => {
     try {
-      await api.updateFeedbackStatus(fbId, status);
-      setFeedbacks(feedbacks.map(f => f.id === fbId ? { ...f, status } : f));
+      const existing = feedbacks.find(f => f.id === fbId);
+      const replyToSend = adminReply !== null ? adminReply : (existing?.admin_reply || '');
+      await api.updateFeedbackStatus(fbId, status, replyToSend);
+      setFeedbacks(feedbacks.map(f => f.id === fbId ? { ...f, status, admin_reply: replyToSend } : f));
     } catch (err) {
       alert(err.message || "Failed to update status.");
     }
@@ -299,21 +382,24 @@ const AdminDashboard = () => {
               Manage system metrics, staff, customer reports & live orders
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button onClick={fetchAdminData} className="glass-panel" style={{ padding: '10px 18px', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={fetchAdminData} className="glass-panel" style={{ padding: '10px 16px', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
               <Clock size={16} /> Refresh Data
             </button>
-            <button className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setIsAddPartnerOpen(true)}>
-              <Plus size={18} /> Add Staff / Partner
-            </button>
+            {activeView === 'delivery_partners' && (
+              <button className="btn-primary" style={{ padding: '10px 18px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', fontSize: '0.88rem' }} onClick={() => setIsAddPartnerOpen(true)}>
+                <Plus size={18} /> Add Staff / Partner
+              </button>
+            )}
             <button
               onClick={handleLogout}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 18px', color: '#f87171', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 18px', color: '#f87171', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, whiteSpace: 'nowrap' }}
             >
               <LogOut size={16} /> Logout
             </button>
           </div>
         </header>
+
 
         {/* OVERVIEW TAB */}
         {activeView === 'overview' && (
@@ -396,8 +482,9 @@ const AdminDashboard = () => {
             </div>
 
             {/* Orders Table */}
-            <div className="glass-panel" style={{ padding: '25px', borderRadius: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="glass-panel" style={{ padding: '25px', borderRadius: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: '880px', borderCollapse: 'collapse' }}>
+
                 <thead>
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
                     <th style={{ padding: '12px' }}>ORDER #</th>
@@ -499,9 +586,10 @@ const AdminDashboard = () => {
 
         {/* CUSTOMERS TAB WITH CLICKABLE INDIVIDUAL USER DETAILS MODAL */}
         {activeView === 'customers' && (
-          <div className="glass-panel" style={{ padding: '30px', borderRadius: '24px' }}>
+          <div className="glass-panel" style={{ padding: '30px', borderRadius: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <h3 style={{ marginBottom: '20px' }}>Registered Customers (Click name for detailed view)</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse' }}>
+
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
                   <th style={{ padding: '15px' }}>NAME (CLICK FOR DETAILS)</th>
@@ -616,174 +704,176 @@ const AdminDashboard = () => {
         {/* FOOD MENU MANAGEMENT & OUT OF STOCK TOGGLE TAB */}
         {activeView === 'menu_management' && (
           <div className="glass-panel" style={{ padding: '30px', borderRadius: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
               <div>
                 <h3 style={{ fontSize: '1.4rem' }}>Food Catalog, Pricing & Stock Controls</h3>
-                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Manage dish prices, upload sample images, and toggle out-of-stock items.</p>
+                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Manage dish details, pricing, categories, sample images, and availability.</p>
               </div>
               <button
                 className="btn-primary"
-                style={{ padding: '10px 20px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{ padding: '10px 20px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}
                 onClick={() => setIsAddFoodOpen(true)}
               >
                 <Plus size={18} /> Add New Dish
               </button>
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
-                  <th style={{ padding: '15px' }}>DISH IMAGE</th>
-                  <th style={{ padding: '15px' }}>DISH NAME</th>
-                  <th style={{ padding: '15px' }}>CATEGORY</th>
-                  <th style={{ padding: '15px' }}>PRICE (EDITABLE)</th>
-                  <th style={{ padding: '15px' }}>DIET</th>
-                  <th style={{ padding: '15px' }}>AVAILABILITY STATUS</th>
-                  <th style={{ padding: '15px', textAlign: 'right' }}>STOCK TOGGLE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {foodItems.map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                    {/* Dish Image Thumbnail with Upload Trigger */}
-                    <td style={{ padding: '15px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: '880px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                    <th style={{ padding: '15px' }}>DISH IMAGE</th>
+                    <th style={{ padding: '15px' }}>DISH NAME</th>
+                    <th style={{ padding: '15px' }}>CATEGORY</th>
+                    <th style={{ padding: '15px' }}>PRICE</th>
+                    <th style={{ padding: '15px' }}>DIET</th>
+                    <th style={{ padding: '15px' }}>AVAILABILITY STATUS</th>
+                    <th style={{ padding: '15px', textAlign: 'right' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {foodItems.map(item => (
+                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                      {/* Dish Image Thumbnail */}
+                      <td style={{ padding: '15px' }}>
                         <img
                           src={item.image_url || '/logo.jpg'}
                           alt={item.name}
-                          style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                          style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                          onClick={() => handleOpenEditFoodModal(item)}
+                          title="Click to edit dish details"
                           onError={(e) => { e.target.onerror = null; e.target.src = '/logo.jpg'; }}
                         />
-                        <label style={{ background: 'rgba(255,255,255,0.08)', color: 'white', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', border: '1px solid rgba(255,255,255,0.15)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Upload size={12} /> Change
-                          <input
-                            type="file"
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            onChange={async (e) => {
-                              const file = e.target.files[0];
-                              if (file) {
-                                if (file.size > 5 * 1024 * 1024) {
-                                  alert("File size exceeds 5MB limit.");
-                                  return;
-                                }
-                                const reader = new FileReader();
-                                reader.onloadend = async () => {
-                                  try {
-                                    await api.updateFoodItem(item.id, { image_url: reader.result });
-                                    setFoodItems(foodItems.map(f => f.id === item.id ? { ...f, image_url: reader.result } : f));
-                                    alert(`Image updated for ${item.name}!`);
-                                  } catch (err) {
-                                    alert(err.message || "Failed to update image.");
-                                  }
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </td>
-                    <td style={{ padding: '15px', fontWeight: 'bold' }}>{item.name}</td>
-                    <td style={{ padding: '15px', opacity: 0.7 }}>{item.category_name}</td>
-                    
-                    {/* Price with Inline Edit */}
-                    <td style={{ padding: '15px' }}>
-                      {editingPriceId === item.id ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 'bold' }}>₹</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editingPriceValue}
-                            onChange={e => setEditingPriceValue(e.target.value)}
-                            style={{ width: '80px', padding: '4px 8px', borderRadius: '6px', background: '#1e293b', border: '1px solid #3B82F6', color: 'white', fontWeight: 'bold' }}
-                          />
-                          <button onClick={() => handleSavePrice(item.id)} style={{ background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>Save</button>
-                          <button onClick={() => setEditingPriceId(null)} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem' }}>Cancel</button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#10B981' }}>₹{item.price}</span>
+                      </td>
+                      <td style={{ padding: '15px', fontWeight: 'bold' }}>{item.name}</td>
+                      <td style={{ padding: '15px', opacity: 0.7 }}>{item.category_name}</td>
+                      
+                      {/* Price */}
+                      <td style={{ padding: '15px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#10B981' }}>₹{item.price}</span>
+                      </td>
+
+                      <td style={{ padding: '15px', textTransform: 'capitalize' }}>{item.diet_type}</td>
+                      <td style={{ padding: '15px' }}>
+                        {item.is_available !== false ? (
+                          <span style={{ background: 'rgba(16,185,129,0.2)', color: '#10B981', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} /> IN STOCK
+                          </span>
+                        ) : (
+                          <span style={{ background: 'rgba(239,68,68,0.2)', color: '#F87171', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <XCircle size={12} /> OUT OF STOCK
+                          </span>
+                        )}
+                      </td>
+                      
+                      {/* Actions: Edit Details Modal & Quick Stock Toggle */}
+                      <td style={{ padding: '15px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
                           <button
-                            onClick={() => handleStartEditPrice(item)}
-                            style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            className="btn-primary"
+                            style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                            onClick={() => handleOpenEditFoodModal(item)}
                           >
-                            <Edit3 size={12} /> Edit Price
+                            <Edit3 size={14} /> Edit Details
+                          </button>
+                          <button
+                            onClick={() => handleToggleFoodStock(item)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', whiteSpace: 'nowrap',
+                              background: item.is_available !== false ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                              color: item.is_available !== false ? '#10B981' : '#F87171',
+                              border: `1px solid ${item.is_available !== false ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
+                            }}
+                          >
+                            <div style={{
+                              width: '28px', height: '16px', borderRadius: '10px',
+                              background: item.is_available !== false ? '#10B981' : '#4B5563',
+                              position: 'relative', transition: 'all 0.2s ease', padding: '2px'
+                            }}>
+                              <div style={{
+                                width: '12px', height: '12px', borderRadius: '50%', background: 'white',
+                                transform: item.is_available !== false ? 'translateX(12px)' : 'translateX(0px)',
+                                transition: 'transform 0.2s ease'
+                              }} />
+                            </div>
+                            {item.is_available !== false ? 'In Stock' : 'Out of Stock'}
                           </button>
                         </div>
-                      )}
-                    </td>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
 
-                    <td style={{ padding: '15px', textTransform: 'capitalize' }}>{item.diet_type}</td>
-                    <td style={{ padding: '15px' }}>
-                      {item.is_available !== false ? (
-                        <span style={{ background: 'rgba(16,185,129,0.2)', color: '#10B981', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <CheckCircle2 size={12} /> IN STOCK
-                        </span>
-                      ) : (
-                        <span style={{ background: 'rgba(239,68,68,0.2)', color: '#F87171', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <XCircle size={12} /> OUT OF STOCK
-                        </span>
-                      )}
-                    </td>
-                    
-                    {/* Modern Switch Pill Toggle */}
-                    <td style={{ padding: '15px', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleToggleFoodStock(item)}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem',
-                          background: item.is_available !== false ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: item.is_available !== false ? '#10B981' : '#F87171',
-                          border: `1px solid ${item.is_available !== false ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
-                        }}
-                      >
-                        <div style={{
-                          width: '32px', height: '18px', borderRadius: '10px',
-                          background: item.is_available !== false ? '#10B981' : '#4B5563',
-                          position: 'relative', transition: 'all 0.2s ease', padding: '2px'
-                        }}>
-                          <div style={{
-                            width: '14px', height: '14px', borderRadius: '50%', background: 'white',
-                            transform: item.is_available !== false ? 'translateX(14px)' : 'translateX(0px)',
-                            transition: 'transform 0.2s ease'
-                          }} />
-                        </div>
-                        {item.is_available !== false ? 'In Stock' : 'Out of Stock'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
+
 
         {/* CUSTOMER FEEDBACK & REPORTS TAB */}
         {activeView === 'feedback_reports' && (
           <div className="glass-panel" style={{ padding: '30px', borderRadius: '24px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Customer Feedback & Inquiry Messages</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <h3 style={{ marginBottom: '20px' }}>Customer Support Tickets & Feedback</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {feedbacks.map(fb => (
-                <div key={fb.id} className="glass-panel" style={{ padding: '20px', borderRadius: '16px', background: 'rgba(255,255,255,0.02)', borderLeft: `4px solid ${fb.status === 'RESOLVED' ? '#10B981' : '#F59E0B'}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                <div key={fb.id} className="glass-panel" style={{ padding: '24px', borderRadius: '16px', background: 'rgba(255,255,255,0.02)', borderLeft: `4px solid ${fb.status === 'RESOLVED' ? '#10B981' : fb.status === 'IN_REVIEW' ? '#3B82F6' : '#F59E0B'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                     <div>
-                      <h4 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{fb.subject}</h4>
-                      <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>From: <strong>{fb.name}</strong> ({fb.email}) • {new Date(fb.created_at).toLocaleString()}</p>
+                      <h4 style={{ fontSize: '1.15rem', marginBottom: '4px', color: '#D97706' }}>{fb.subject}</h4>
+                      <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                        From: <strong>{fb.name}</strong> ({fb.email}) • {new Date(fb.created_at).toLocaleString()}
+                      </p>
                     </div>
-                    <select
-                      value={fb.status}
-                      onChange={e => handleUpdateFeedbackStatus(fb.id, e.target.value)}
-                      style={{ background: '#1e293b', color: 'white', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
-                    >
-                      <option value="NEW">NEW</option>
-                      <option value="READ">READ</option>
-                      <option value="RESOLVED">RESOLVED</option>
-                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>Status:</label>
+                      <select
+                        value={fb.status}
+                        onChange={e => handleUpdateFeedbackStatus(fb.id, e.target.value)}
+                        style={{ background: '#1e293b', color: 'white', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.8rem', fontWeight: 'bold' }}
+                      >
+                        <option value="NEW">NEW</option>
+                        <option value="READ">READ</option>
+                        <option value="IN_REVIEW">IN REVIEW</option>
+                        <option value="RESOLVED">RESOLVED</option>
+                      </select>
+                    </div>
                   </div>
-                  <p style={{ background: 'rgba(0,0,0,0.3)', padding: '14px', borderRadius: '10px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                  <p style={{ background: 'rgba(0,0,0,0.3)', padding: '14px', borderRadius: '10px', fontSize: '0.95rem', lineHeight: '1.5', border: '1px solid rgba(255,255,255,0.05)' }}>
                     "{fb.message}"
                   </p>
+
+                  {/* ADMIN REPLY SECTION */}
+                  <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                    <label style={{ display: 'block', fontSize: '0.82rem', color: '#60a5fa', marginBottom: '6px', fontWeight: '600' }}>
+                      💬 Admin Reply to Customer:
+                    </label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input
+                        type="text"
+                        placeholder="Type official response to customer..."
+                        defaultValue={fb.admin_reply || ''}
+                        id={`reply-input-${fb.id}`}
+                        style={{ flex: 1, padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '0.9rem' }}
+                      />
+                      <button
+                        className="btn-primary"
+                        style={{ padding: '8px 18px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                        onClick={() => {
+                          const inputEl = document.getElementById(`reply-input-${fb.id}`);
+                          const val = inputEl ? inputEl.value : '';
+                          const nextStatus = fb.status === 'NEW' ? 'IN_REVIEW' : fb.status;
+                          handleUpdateFeedbackStatus(fb.id, nextStatus, val);
+                          alert('Reply saved successfully!');
+                        }}
+                      >
+                        Send Reply
+                      </button>
+                    </div>
+                    {fb.admin_reply && (
+                      <p style={{ marginTop: '8px', fontSize: '0.82rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>✓ Active Response Sent:</span> <em>"{fb.admin_reply}"</em>
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
               {feedbacks.length === 0 && (
@@ -1084,6 +1174,128 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* Modal Single Edit Dish Details (Category, Name, Price, Diet, Availability, Description & Image in a single update) */}
+        {isEditFoodOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="glass-panel" style={{ width: '100%', maxWidth: '560px', padding: '30px', borderRadius: '24px', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.4rem' }}>Edit Dish Details</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Update all dish information in a single update request</p>
+                </div>
+                <button onClick={() => setIsEditFoodOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                  <X size={22} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Dish Name *</label>
+                  <input 
+                    type="text" 
+                    className="glass-panel w-100" 
+                    style={{ padding: '12px 16px', color: 'white', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', outline: 'none' }} 
+                    placeholder="e.g. Paneer Butter Masala" 
+                    value={editingFoodItem.name} 
+                    onChange={e => setEditingFoodItem({ ...editingFoodItem, name: e.target.value })} 
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Category *</label>
+                    <select
+                      style={{ padding: '12px', color: 'white', background: '#121212', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', width: '100%' }}
+                      value={editingFoodItem.category_id}
+                      onChange={e => setEditingFoodItem({ ...editingFoodItem, category_id: e.target.value })}
+                    >
+                      {categoriesList.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Price (₹) *</label>
+                    <input 
+                      type="number"
+                      step="0.01" 
+                      className="glass-panel w-100" 
+                      style={{ padding: '12px 16px', color: 'white', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', outline: 'none' }} 
+                      placeholder="e.g. 199.00" 
+                      value={editingFoodItem.price} 
+                      onChange={e => setEditingFoodItem({ ...editingFoodItem, price: e.target.value })} 
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Diet Preference</label>
+                    <select
+                      style={{ padding: '12px', color: 'white', background: '#121212', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', width: '100%' }}
+                      value={editingFoodItem.diet_type}
+                      onChange={e => setEditingFoodItem({ ...editingFoodItem, diet_type: e.target.value })}
+                    >
+                      <option value="veg">🟢 Veg</option>
+                      <option value="non-veg">🔴 Non-Veg</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Availability Status</label>
+                    <select
+                      style={{ padding: '12px', color: 'white', background: '#121212', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', width: '100%' }}
+                      value={editingFoodItem.is_available ? "true" : "false"}
+                      onChange={e => setEditingFoodItem({ ...editingFoodItem, is_available: e.target.value === "true" })}
+                    >
+                      <option value="true">● In Stock (Available)</option>
+                      <option value="false">✖ Out of Stock</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Description</label>
+                  <textarea 
+                    rows={3}
+                    className="glass-panel w-100" 
+                    style={{ padding: '12px 16px', color: 'white', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', outline: 'none', resize: 'none' }} 
+                    placeholder="Short description of ingredients..." 
+                    value={editingFoodItem.description} 
+                    onChange={e => setEditingFoodItem({ ...editingFoodItem, description: e.target.value })} 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'block' }}>Dish Sample Image Upload</label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleEditImageFileUpload}
+                    style={{ background: 'rgba(255,255,255,0.05)', color: 'white', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', width: '100%', cursor: 'pointer' }}
+                  />
+                  {editingFoodItem.image_url && (
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img src={editingFoodItem.image_url} alt="Preview" style={{ width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #10B981' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#10B981' }}>✓ Image preview ready</span>
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  className="btn-primary w-100" 
+                  style={{ padding: '15px', fontWeight: 'bold', fontSize: '1rem', marginTop: '10px' }}
+                  onClick={handleSaveEditFoodItem}
+                >
+                  Save All Changes (Single Update)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
       </div>
     </div>

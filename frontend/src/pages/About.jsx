@@ -25,7 +25,7 @@ const About = () => {
               relive the simplicity of the 90s.
             </p>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '30px', marginBottom: '40px' }}>
+            <div className="about-stats-grid">
               <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '20px' }}>
                 <h4 style={{ color: '#D97706', fontSize: '2rem', marginBottom: '5px' }}>10k+</h4>
                 <p style={{ fontSize: '0.9rem', opacity: 0.7 }}>Happy Customers</p>
@@ -41,7 +41,7 @@ const About = () => {
             </div>
 
             <h3 style={{ fontSize: '1.8rem', marginBottom: '15px', color: 'white' }}>Why Choose Us?</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
+            <div className="about-features-grid">
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <h4 style={{ color: '#D97706', marginBottom: '8px', fontSize: '1.1rem' }}>☕ Authentic Recipes</h4>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Crafted using traditional methods and fresh, premium ingredients every single day.</p>

@@ -81,3 +81,35 @@ def cancel_order(order_id):
     if err:
         return error_response(message=err, code="CANCEL_FAILED", status_code=400)
     return success_response(data=order, message="Order cancelled successfully!")
+
+@order_bp.route("/<order_id>/stream-location", methods=["GET"])
+@token_required
+def stream_order_location(order_id):
+    from flask import Response, stream_with_context, current_app
+    import json
+    import time
+
+    is_admin = (g.user_role == UserRole.ADMIN.value)
+    order, err = OrderService.get_order_by_id(order_id, user_id=g.current_user.id, is_admin=is_admin)
+    if err:
+        return error_response(message=err, code="UNAUTHORIZED", status_code=403)
+
+    def event_generator():
+        while True:
+            with current_app.app_context():
+                current_order, err_stream = OrderService.get_order_by_id(order_id, user_id=g.current_user.id, is_admin=is_admin)
+                if current_order:
+                    payload = {
+                        "order_id": current_order["id"],
+                        "status": current_order["status"],
+                        "partner_latitude": current_order.get("partner_latitude"),
+                        "partner_longitude": current_order.get("partner_longitude"),
+                        "assigned_to": current_order.get("assigned_to")
+                    }
+                    yield f"data: {json.dumps(payload)}\n\n"
+                    if current_order["status"] in ["DELIVERED", "CANCELLED"]:
+                        break
+            time.sleep(3)
+
+    return Response(stream_with_context(event_generator()), content_type="text/event-stream")
+

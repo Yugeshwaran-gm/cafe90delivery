@@ -13,10 +13,13 @@ class Config:
             raise RuntimeError("CRITICAL CONFIGURATION ERROR: JWT_SECRET_KEY environment variable must be set in production mode!")
         SECRET_KEY = "dev_only_jwt_secret_cafe90"
     
+    TESTING = os.getenv("TESTING", "False").lower() in ("true", "1", "yes")
+
     # PostgreSQL Connection URL (formatted for psycopg 3)
+    default_db = "cafe90s_test" if TESTING else "cafe90s"
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL", 
-        "postgresql+psycopg://postgres:postgres@localhost:5432/cafe90s"
+        f"postgresql+psycopg://postgres:postgres@localhost:5432/{default_db}"
     )
     # Fix potential Heroku/Render legacy postgres:// URLs
     if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
@@ -24,10 +27,11 @@ class Config:
     elif SQLALCHEMY_DATABASE_URI.startswith("postgresql://") and not SQLALCHEMY_DATABASE_URI.startswith("postgresql+psycopg://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgresql://", "postgresql+psycopg://", 1)
 
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_size": int(os.getenv("DB_POOL_SIZE", 5)),
-        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", 5)),
+        "pool_size": int(os.getenv("DB_POOL_SIZE", 2)),
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", 2)),
         "pool_pre_ping": True,
         "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", 300)),
         "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", 30)),

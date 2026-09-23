@@ -2,6 +2,7 @@ import uuid
 import random
 from decimal import Decimal
 from datetime import datetime, timezone
+from sqlalchemy.orm import joinedload
 from database.connection import db
 from database.models.cart import Cart, CartItem
 from database.models.food import FoodItem
@@ -56,9 +57,9 @@ class OrderService:
             subtotal = Decimal("0.00")
             order_items_to_create = []
 
-            # 3. Recalculate price server-side from PostgreSQL food_items table
+            # 3. Recalculate price server-side from PostgreSQL food_items table with row-level lock
             for ci in cart_items:
-                food = db.session.get(FoodItem, ci.food_item_id)
+                food = db.session.query(FoodItem).filter_by(id=ci.food_item_id).with_for_update().first()
                 if not food or not food.is_available:
                     return None, f"Item '{food.name if food else ci.food_item_id}' is currently unavailable"
 
@@ -74,7 +75,36 @@ class OrderService:
                     "subtotal": line_subtotal
                 })
 
-            delivery_fee = Decimal("30.00")
+            # Check client expected subtotal consistency if provided
+            expected_subtotal = checkout_data.get("expected_subtotal")
+            if expected_subtotal is not None:
+                try:
+                    exp_val = Decimal(str(expected_subtotal))
+                    if abs(subtotal - exp_val) > Decimal("0.01"):
+                        return None, "Menu prices have been updated since you added items to your cart. Please review your updated cart total."
+                except Exception:
+                    pass
+
+            from services.pricing_service import PricingService
+            from config import Config
+
+            user_lat = checkout_data.get("delivery_latitude")
+            user_lng = checkout_data.get("delivery_longitude")
+            delivery_distance_km = None
+            pricing_rule_id = None
+
+            if user_lat is not None and user_lng is not None:
+                rest_lat, rest_lng = Config.RESTAURANT_LATITUDE, Config.RESTAURANT_LONGITUDE
+                dist_km = calculate_haversine_distance(rest_lat, rest_lng, float(user_lat), float(user_lng))
+                fee, rule_id, err_msg = PricingService.calculate_delivery_charge(dist_km)
+                if err_msg:
+                    return None, err_msg
+                delivery_fee = fee
+                delivery_distance_km = Decimal(str(round(dist_km, 2)))
+                pricing_rule_id = rule_id
+            else:
+                delivery_fee = Decimal("30.00")
+
             total_amount = subtotal + delivery_fee
 
             payment_method_str = checkout_data.get("payment_method", "COD").upper()
@@ -83,15 +113,6 @@ class OrderService:
 
             pay_method = PaymentMethod.COD
             pay_status = PaymentStatus.PENDING
-
-            user_lat = checkout_data.get("delivery_latitude")
-            user_lng = checkout_data.get("delivery_longitude")
-            if user_lat is not None and user_lng is not None:
-                from config import Config
-                rest_lat, rest_lng = Config.RESTAURANT_LATITUDE, Config.RESTAURANT_LONGITUDE
-                dist_km = calculate_haversine_distance(rest_lat, rest_lng, float(user_lat), float(user_lng))
-                if dist_km > Config.DELIVERY_RADIUS_KM:
-                    return None, f"Selected address ({dist_km:.1f} km away) exceeds our {Config.DELIVERY_RADIUS_KM:.0f} km local district delivery radius."
 
             # 4. Create Order Master Record
             new_order = Order(
@@ -102,6 +123,8 @@ class OrderService:
                 delivery_landmark=checkout_data.get("delivery_landmark"),
                 delivery_latitude=Decimal(str(checkout_data["delivery_latitude"])) if checkout_data.get("delivery_latitude") else None,
                 delivery_longitude=Decimal(str(checkout_data["delivery_longitude"])) if checkout_data.get("delivery_longitude") else None,
+                delivery_distance_km=delivery_distance_km,
+                pricing_rule_id=pricing_rule_id,
                 subtotal=subtotal,
                 delivery_fee=delivery_fee,
                 total_amount=total_amount,
@@ -210,17 +233,29 @@ class OrderService:
 
     @staticmethod
     def get_customer_orders(user_id):
-        orders = db.session.query(Order).filter_by(customer_id=user_id).order_by(Order.created_at.desc()).all()
+        orders = db.session.query(Order).options(
+            joinedload(Order.customer),
+            joinedload(Order.delivery_partner),
+            joinedload(Order.items),
+            joinedload(Order.timeline)
+        ).filter_by(customer_id=user_id).order_by(Order.created_at.desc()).all()
         return [order.to_dict() for order in orders]
 
     @staticmethod
     def get_order_by_id(order_id_str, user_id=None, is_admin=False):
         try:
             order_uuid = uuid.UUID(order_id_str)
-            order = db.session.get(Order, order_uuid)
+            order = db.session.query(Order).options(
+                joinedload(Order.customer),
+                joinedload(Order.delivery_partner),
+                joinedload(Order.items),
+                joinedload(Order.timeline)
+            ).filter_by(id=order_uuid).first()
             if not order:
                 return None, "Order not found"
-            if not is_admin and str(order.customer_id) != str(user_id) and str(order.delivery_partner_id) != str(user_id):
+            
+            user_uuid = user_id if isinstance(user_id, uuid.UUID) else (uuid.UUID(str(user_id)) if user_id else None)
+            if not is_admin and order.customer_id != user_uuid and order.delivery_partner_id != user_uuid:
                 return None, "Unauthorized access to order"
             return order.to_dict(), None
         except ValueError:
@@ -244,7 +279,23 @@ class OrderService:
             except ValueError:
                 return None, f"Invalid order status '{new_status_str}'."
 
-            # 2. Driver Requirement Check for OUT_FOR_DELIVERY
+            # 2. Enforce Strict State Transition Matrix
+            valid_transitions = {
+                OrderStatus.PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+                OrderStatus.CONFIRMED: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+                OrderStatus.PREPARING: [OrderStatus.READY_FOR_PICKUP, OrderStatus.CANCELLED],
+                OrderStatus.READY_FOR_PICKUP: [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED],
+                OrderStatus.OUT_FOR_DELIVERY: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+                OrderStatus.DELIVERED: [],
+                OrderStatus.CANCELLED: []
+            }
+
+            allowed_targets = valid_transitions.get(order.status, [])
+            if target_status not in allowed_targets:
+                curr_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+                return None, f"Illegal status transition: cannot change order status from '{curr_val}' to '{target_status.value}'."
+
+            # 3. Driver Requirement Check for OUT_FOR_DELIVERY
             if target_status == OrderStatus.OUT_FOR_DELIVERY and not order.delivery_partner_id:
                 return None, "Cannot change status to OUT_FOR_DELIVERY without an assigned delivery partner. Please assign a delivery partner first."
 
@@ -268,9 +319,15 @@ class OrderService:
 
     @staticmethod
     def get_all_orders(status=None, limit=100):
-        query = db.session.query(Order)
+        query = db.session.query(Order).options(
+            joinedload(Order.customer),
+            joinedload(Order.delivery_partner),
+            joinedload(Order.items),
+            joinedload(Order.timeline)
+        )
         if status and status != "ALL":
             query = query.filter(Order.status == status)
             
         orders = query.order_by(Order.created_at.desc()).limit(limit).all()
         return [order.to_dict() for order in orders]
+

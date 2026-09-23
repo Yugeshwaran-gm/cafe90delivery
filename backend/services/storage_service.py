@@ -75,6 +75,29 @@ class StorageService:
             if "localhost" in file_or_base64 or "127.0.0.1" in file_or_base64 or "169.254." in file_or_base64:
                 return None, "Invalid remote image URL host."
             return file_or_base64, None
-            
+
+        # Local storage fallback for base64 payload when Cloudinary is not active
+        if isinstance(file_or_base64, str) and file_or_base64.startswith("data:image/"):
+            try:
+                import base64
+                import uuid
+                header, _, data_str = file_or_base64.partition(",")
+                ext = "png"
+                if "jpeg" in header or "jpg" in header:
+                    ext = "jpg"
+                elif "webp" in header:
+                    ext = "webp"
+                
+                upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
+                os.makedirs(upload_dir, exist_ok=True)
+                filename = f"{uuid.uuid4().hex}.{ext}"
+                filepath = os.path.join(upload_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(data_str))
+                return f"/static/uploads/{filename}", None
+            except Exception as ex:
+                logger.error(f"Local storage fallback failed: {ex}")
+
         logger.warning("Cloudinary credentials not configured; returning fallback CDN image URL.")
         return DEFAULT_FOOD_IMAGE, None
+
